@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 import {
-  Plus, Trash2, GripVertical, ChevronDown, ChevronUp,
+  Plus, Trash2, GripVertical,
   Send, Save, User, Search, X, ArrowLeft, Tag
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { Business, Client, Estimate, EstimateItem, LibraryItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { getSuggestionsForActivity, type TradeSuggestion } from "@/lib/trade-suggestions";
+import { Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
 
 interface EstimateFormProps {
   business: Business | null;
@@ -331,6 +333,23 @@ export default function EstimateForm({ business, clients, mode, estimate }: Esti
             />
           </section>
 
+          {/* Suggestions de prestations */}
+          <SuggestionsPanel
+            activity={business?.activity}
+            onApply={(suggestion) => {
+              setTitle((prev) => prev || suggestion.title);
+              addLine(false);
+              setLines((prev) => {
+                const last = prev[prev.length - 1];
+                return prev.map((l) =>
+                  l.id === last.id
+                    ? { ...l, description: suggestion.description, unit: suggestion.unit }
+                    : l
+                );
+              });
+            }}
+          />
+
           {/* Lignes de devis */}
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
@@ -616,5 +635,57 @@ function LineRow({
         </span>
       </div>
     </div>
+  );
+}
+
+// ─── Panneau de suggestions par métier ───────────────────────────────────────
+function SuggestionsPanel({
+  activity,
+  onApply,
+}: {
+  activity?: string | null;
+  onApply: (s: TradeSuggestion) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const suggestions = getSuggestionsForActivity(activity);
+
+  if (!suggestions.length) return null;
+
+  return (
+    <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+      >
+        <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+          <Lightbulb className="w-4 h-4 text-amber-600" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-slate-900">Suggestions de prestations</p>
+          <p className="text-xs text-slate-400">
+            {activity ? `Pour ${activity}` : "Cliquez pour ajouter une prestation type"}
+          </p>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-50 px-3 py-3 flex flex-wrap gap-2">
+          <p className="w-full text-xs text-slate-400 mb-1">
+            Appuyez pour remplir la description · Le prix reste à votre charge
+          </p>
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => onApply(s)}
+              className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 active:scale-95 transition-transform text-left"
+            >
+              <Plus className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+              {s.title}
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

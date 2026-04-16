@@ -15,6 +15,15 @@ interface ClientFormProps {
   client?: Client;
 }
 
+// Convert empty strings to null for optional fields
+function sanitize(form: Record<string, string>) {
+  const out: Record<string, string | null> = {};
+  for (const [k, v] of Object.entries(form)) {
+    out[k] = v.trim() === "" ? null : v.trim();
+  }
+  return out;
+}
+
 export default function ClientForm({ businessId, mode, client }: ClientFormProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -31,29 +40,76 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
     notes: client?.notes || "",
   });
 
-  const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const update = (field: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    };
+
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!form.full_name.trim()) errs.full_name = "Le nom est obligatoire";
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      errs.email = "Email invalide";
+    }
+    if (form.postal_code.trim() && !/^\d{4,6}$/.test(form.postal_code.trim())) {
+      errs.postal_code = "Code postal invalide";
+    }
+    return errs;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.full_name.trim()) {
-      toast.error("Le nom est obligatoire");
+
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      toast.error("Corrigez les erreurs avant de continuer");
       return;
     }
+
+    if (!businessId) {
+      toast.error("Entreprise non configurée. Allez dans Profil > Entreprise.");
+      return;
+    }
+
     setLoading(true);
+    console.log("[ClientForm] submitting", { mode, businessId, form });
 
     try {
+      // Verify session is still valid
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        toast.error("Session expirée. Veuillez vous reconnecter.");
+        router.push("/login");
+        return;
+      }
+
+      const payload = {
+        ...sanitize(form),
+        full_name: form.full_name.trim(), // required, never null
+        business_id: businessId,
+      };
+
+      console.log("[ClientForm] payload:", payload);
+
       if (mode === "create") {
         const { data, error } = await supabase
           .from("clients")
-          .insert({ ...form, business_id: businessId })
-          .select()
+          .insert(payload)
+          .select("id")
           .single();
-        if (error) throw error;
+
+        if (error) {
+          console.error("[ClientForm] insert error:", error);
+          throw error;
+        }
+
+        console.log("[ClientForm] created:", data);
         toast.success("Client créé !");
 
-        // Retour contexte : si on vient de la création de devis
         const params = new URLSearchParams(window.location.search);
         if (params.get("return") === "devis") {
           router.push("/devis/nouveau");
@@ -61,16 +117,41 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
           router.push(`/clients/${data.id}`);
         }
       } else if (client) {
+        const { payload: _bid, ...updatePayload } = { ...payload, payload: null };
         const { error } = await supabase
           .from("clients")
-          .update(form)
+          .update(sanitize(form))
           .eq("id", client.id);
-        if (error) throw error;
+
+        if (error) {
+          console.error("[ClientForm] update error:", error);
+          throw error;
+        }
+
         toast.success("Client mis à jour !");
         router.push(`/clients/${client.id}`);
       }
-    } catch (err) {
-      toast.error("Erreur lors de la sauvegarde");
+    } catch (err: unknown) {
+      const supaErr = err as { message?: string; code?: string; details?: string; hint?: string };
+      const msg = supaErr?.message || String(err);
+      const code = supaErr?.code || "";
+
+      console.error("[ClientForm] full error:", { msg, code, details: supaErr?.details, hint: supaErr?.hint });
+
+      if (code === "42501" || msg.includes("row-level security") || msg.includes("RLS")) {
+        toast.error("Accès refusé. Assurez-vous que votre entreprise est bien configurée.");
+      } else if (code === "23503" || msg.includes("foreign key")) {
+        toast.error("L'entreprise associée est introuvable. Reconfigurer dans Profil > Entreprise.");
+      } else if (code === "23505" || msg.includes("unique")) {
+        toast.error("Un client avec ces informations existe déjà.");
+      } else if (code === "23502" || msg.includes("not null")) {
+        toast.error("Champ obligatoire manquant : " + msg);
+      } else if (msg.includes("JWT") || msg.includes("token")) {
+        toast.error("Session expirée. Reconnectez-vous.");
+        router.push("/login");
+      } else {
+        toast.error("Erreur : " + msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -81,7 +162,11 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
       {/* Header */}
       <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center"
+          >
             <ArrowLeft className="w-4 h-4 text-slate-600" />
           </button>
           <h1 className="text-lg font-black text-slate-900">
@@ -90,25 +175,29 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto" noValidate>
         <div className="px-4 py-4 flex flex-col gap-4">
 
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Identité</h2>
+            <div>
+              <Input
+                label="Nom complet *"
+                placeholder="Jean Dupont"
+                icon={<User className="w-4 h-4" />}
+                value={form.full_name}
+                onChange={update("full_name")}
+                autoComplete="name"
+              />
+              {errors.full_name && <p className="text-xs text-red-500 mt-1 ml-1">{errors.full_name}</p>}
+            </div>
             <Input
-              label="Nom complet *"
-              placeholder="Jean Dupont"
-              icon={<User className="w-4 h-4" />}
-              value={form.full_name}
-              onChange={update("full_name")}
-              required
-            />
-            <Input
-              label="Entreprise"
+              label="Entreprise (optionnel)"
               placeholder="Dupont SARL"
               icon={<Building2 className="w-4 h-4" />}
               value={form.company_name}
               onChange={update("company_name")}
+              autoComplete="organization"
             />
           </section>
 
@@ -117,21 +206,26 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
             <Input
               label="Téléphone"
               type="tel"
-              placeholder="06 12 34 56 78"
+              placeholder="+33 6 12 34 56 78"
               icon={<Phone className="w-4 h-4" />}
               value={form.phone}
               onChange={update("phone")}
               inputMode="tel"
+              autoComplete="tel"
             />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="jean@example.fr"
-              icon={<Mail className="w-4 h-4" />}
-              value={form.email}
-              onChange={update("email")}
-              inputMode="email"
-            />
+            <div>
+              <Input
+                label="Email"
+                type="email"
+                placeholder="jean@example.com"
+                icon={<Mail className="w-4 h-4" />}
+                value={form.email}
+                onChange={update("email")}
+                inputMode="email"
+                autoComplete="email"
+              />
+              {errors.email && <p className="text-xs text-red-500 mt-1 ml-1">{errors.email}</p>}
+            </div>
           </section>
 
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
@@ -142,6 +236,7 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
               icon={<MapPin className="w-4 h-4" />}
               value={form.address}
               onChange={update("address")}
+              autoComplete="street-address"
             />
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-1">
@@ -151,7 +246,9 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
                   value={form.postal_code}
                   onChange={update("postal_code")}
                   inputMode="numeric"
+                  autoComplete="postal-code"
                 />
+                {errors.postal_code && <p className="text-[10px] text-red-500 mt-0.5">{errors.postal_code}</p>}
               </div>
               <div className="col-span-2">
                 <Input
@@ -159,6 +256,7 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
                   placeholder="Paris"
                   value={form.city}
                   onChange={update("city")}
+                  autoComplete="address-level2"
                 />
               </div>
             </div>
@@ -171,7 +269,7 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
             <textarea
               value={form.notes}
               onChange={update("notes")}
-              placeholder="Informations utiles sur ce client..."
+              placeholder="Informations utiles sur ce client…"
               className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:border-blue-500 resize-none"
               rows={3}
             />

@@ -168,9 +168,12 @@ export interface DashboardMetrics {
   pendingEstimatesAmount: number;  // CA devis en attente
   pendingReminders: number;        // Nombre de relances à faire
   activeJobs: number;              // Chantiers en cours
-  monthRevenue: number;            // CA facturé ce mois
+  monthRevenue: number;            // CA facturé ce mois (TTC)
+  prevMonthRevenue: number;        // CA mois précédent (TTC)
   pendingCount: number;            // Nombre de devis en attente
   viewedNotSigned: number;         // Devis vus mais non signés
+  sentCount: number;               // Devis envoyés ce mois
+  acceptedCount: number;           // Devis acceptés ce mois
 }
 
 // Form types (for creation)

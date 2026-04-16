@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { formatCurrency, formatDate, calculateVAT, calculateTTC } from "@/lib/utils";
 import type { Estimate, EstimateItem, Business, Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Check, PenLine, X, CreditCard, Phone, Mail } from "lucide-react";
+import { Check, PenLine, X, Phone, Mail } from "lucide-react";
 import toast from "react-hot-toast";
 
 type FullEstimate = Estimate & {
@@ -341,20 +341,6 @@ export default function ClientEstimateView({ estimate }: { estimate: FullEstimat
               </div>
             )}
           </div>
-        )}
-
-        {/* Paiement Stripe */}
-        {(signed || estimate.status === "accepted") && estimate.stripe_payment_link && (
-          <a
-            href={estimate.stripe_payment_link}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button size="xl" variant="success" className="w-full">
-              <CreditCard className="w-5 h-5" />
-              Payer {formatCurrency(totalTTC)} maintenant
-            </Button>
-          </a>
         )}
 
         <div className="h-8" />

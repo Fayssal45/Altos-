@@ -48,7 +48,6 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
     email: business?.email || "",
     address: business?.address || "",
     vat_number: business?.vat_number || "",
-    siret: business?.siret || "",
     iban: business?.iban || "",
     payment_terms: business?.payment_terms || "30 jours",
     vat_regime: business?.vat_regime || "normal",
@@ -107,8 +106,15 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
       toast.success("Entreprise enregistrée !");
       router.push("/");
       router.refresh();
-    } catch (err) {
-      toast.error("Erreur lors de la sauvegarde");
+    } catch (err: unknown) {
+      const supaErr = err as { message?: string; code?: string };
+      const msg = supaErr?.message || String(err);
+      console.error("[BusinessProfileForm] save error:", err);
+      if (supaErr?.code === "42501" || msg.includes("row-level security")) {
+        toast.error("Accès refusé. Reconnectez-vous et réessayez.");
+      } else {
+        toast.error("Erreur : " + msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -222,17 +228,14 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
               </select>
             </div>
             <Input
-              label="N° SIRET"
-              placeholder="123 456 789 00012"
-              value={form.siret}
-              onChange={update("siret")}
-            />
-            <Input
-              label="N° TVA intracommunautaire"
-              placeholder="FR12345678901"
+              label="N° TVA intracommunautaire (UE)"
+              placeholder="FR12345678901 / BE0123456789 / DE123456789"
               value={form.vat_number}
               onChange={update("vat_number")}
             />
+            <p className="text-xs text-slate-400 -mt-2">
+              Numéro de TVA UE · Affiché sur vos devis et factures
+            </p>
           </section>
 
           {/* Paiement */}
