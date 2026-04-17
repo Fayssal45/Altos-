@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { Business } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
 import {
   Home, FileText, Users, Calendar, Bell,
-  Plus, X, Zap, Briefcase
+  Plus, X, Zap, Briefcase, Camera,
+  Paperclip, AlertTriangle, CheckCircle2, Clock, ChevronRight,
 } from "lucide-react";
+import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: Home,     label: "Accueil" },
@@ -42,7 +44,7 @@ const FAB_ACTIONS = [
     href: "/clients/nouveau",
   },
   {
-    label: "Nouveau Chantier",
+    label: "Nouvelle Intervention",
     icon: Briefcase,
     color: "bg-violet-600",
     shadow: "shadow-violet-600/40",
@@ -54,14 +56,45 @@ interface AppShellProps {
   children: React.ReactNode;
   business: Business | null;
   user: User;
+  relancesCount?: number;
 }
 
-export default function AppShell({ children, business, user }: AppShellProps) {
+export default function AppShell({ children, business, user, relancesCount = 0 }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [fabOpen, setFabOpen] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: notifications } = useNotifications(business?.id);
+  const urgentCount = (notifications || []).filter(n => n.category === "urgent").length;
+  const todayCount = (notifications || []).filter(n => n.category === "today").length;
+  const notifTotal = (notifications || []).length;
 
   const initial = (business?.name || user.email || "U")[0].toUpperCase();
+
+  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCapturedPhoto(url);
+    setFabOpen(false);
+    // Reset input so same file can be selected again
+    e.target.value = "";
+  };
+
+  const handlePhotoAction = (action: "intervention" | "new-intervention" | "new-devis") => {
+    setCapturedPhoto(null);
+    if (action === "new-intervention") {
+      router.push("/chantiers/nouveau");
+    } else if (action === "new-devis") {
+      router.push("/devis/nouveau");
+    } else {
+      // "attach to existing" → go to interventions list
+      router.push("/chantiers");
+    }
+  };
 
   return (
     <div className="flex flex-col h-full max-w-lg mx-auto bg-slate-50">
@@ -82,12 +115,30 @@ export default function AppShell({ children, business, user }: AppShellProps) {
               )}
             </div>
           </Link>
-          <Link
-            href="/profil"
-            className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm"
-          >
-            {initial}
-          </Link>
+          <div className="flex items-center gap-2">
+            {/* Notification bell */}
+            <button
+              onClick={() => setNotifOpen(true)}
+              className="relative w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center"
+              aria-label="Notifications"
+            >
+              <Bell className="w-4 h-4 text-slate-600" />
+              {notifTotal > 0 && (
+                <span className={cn(
+                  "absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white px-1",
+                  urgentCount > 0 ? "bg-red-500" : "bg-blue-500"
+                )}>
+                  {notifTotal > 9 ? "9+" : notifTotal}
+                </span>
+              )}
+            </button>
+            <Link
+              href="/profil"
+              className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm"
+            >
+              {initial}
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -104,9 +155,23 @@ export default function AppShell({ children, business, user }: AppShellProps) {
         />
       )}
 
-      {/* FAB actions — slide up depuis le bouton */}
+      {/* FAB actions */}
       {fabOpen && (
         <div className="fixed bottom-[88px] right-4 z-50 flex flex-col gap-2.5 items-end">
+          {/* Camera action */}
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            className="flex items-center gap-3 animate-slide-up"
+            style={{ animationDelay: `${FAB_ACTIONS.length * 40}ms` }}
+          >
+            <span className="bg-white rounded-2xl px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-lg border border-slate-100">
+              Prendre une photo
+            </span>
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0 bg-pink-500 shadow-pink-500/40">
+              <Camera className="w-5 h-5 text-white" />
+            </div>
+          </button>
+
           {FAB_ACTIONS.map((action, i) => (
             <button
               key={i}
@@ -128,6 +193,137 @@ export default function AppShell({ children, business, user }: AppShellProps) {
         </div>
       )}
 
+      {/* Hidden camera input */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleCameraCapture}
+      />
+
+      {/* Photo capture bottom sheet */}
+      {capturedPhoto && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            onClick={() => setCapturedPhoto(null)}
+          />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-white rounded-t-3xl shadow-2xl">
+            {/* Drag handle */}
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 mb-4" />
+
+            {/* Photo preview */}
+            <div className="px-4 mb-4">
+              <div className="relative rounded-2xl overflow-hidden aspect-video bg-slate-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={capturedPhoto} alt="Photo prise" className="w-full h-full object-cover" />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-4 pb-2">
+              <p className="text-sm font-bold text-slate-700 mb-3 text-center">Que faire avec cette photo ?</p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => handlePhotoAction("intervention")}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-violet-50 active:bg-violet-100"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-violet-500 flex items-center justify-center flex-shrink-0">
+                    <Paperclip className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-slate-900">Attacher à une intervention</p>
+                    <p className="text-xs text-slate-500">Choisir une intervention existante</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handlePhotoAction("new-intervention")}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-amber-50 active:bg-amber-100"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
+                    <Briefcase className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-slate-900">Créer une intervention</p>
+                    <p className="text-xs text-slate-500">Nouvelle intervention avec cette photo</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handlePhotoAction("new-devis")}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-blue-50 active:bg-blue-100"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-slate-900">Créer un devis</p>
+                    <p className="text-xs text-slate-500">Nouveau devis avec cette photo</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setCapturedPhoto(null)}
+                  className="flex items-center justify-center px-4 py-3.5 rounded-2xl bg-slate-100 active:bg-slate-200 mt-1"
+                >
+                  <X className="w-4 h-4 text-slate-400 mr-2" />
+                  <span className="text-sm font-semibold text-slate-500">Annuler</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Safe area padding */}
+            <div className="pb-safe h-4" />
+          </div>
+        </>
+      )}
+
+      {/* Notification center overlay */}
+      {notifOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            onClick={() => setNotifOpen(false)}
+          />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col">
+            {/* Handle */}
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 flex-shrink-0" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
+              <h2 className="text-base font-black text-slate-900">Notifications</h2>
+              <button onClick={() => setNotifOpen(false)} className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 pb-safe">
+              {(!notifications || notifications.length === 0) ? (
+                <div className="flex flex-col items-center gap-2 py-12 text-center px-6">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-1">
+                    <Bell className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Aucune notification</p>
+                  <p className="text-xs text-slate-400">Vous êtes à jour !</p>
+                </div>
+              ) : (
+                <NotifSection icon={<AlertTriangle className="w-3.5 h-3.5 text-red-500" />} label="Urgent" color="text-red-600" items={(notifications || []).filter(n => n.category === "urgent")} onClose={() => setNotifOpen(false)} />
+              )}
+              {notifications && notifications.filter(n => n.category === "today").length > 0 && (
+                <NotifSection icon={<Clock className="w-3.5 h-3.5 text-blue-500" />} label="Aujourd'hui" color="text-blue-600" items={notifications.filter(n => n.category === "today")} onClose={() => setNotifOpen(false)} />
+              )}
+              {notifications && notifications.filter(n => n.category === "admin").length > 0 && (
+                <NotifSection icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />} label="À traiter" color="text-emerald-600" items={notifications.filter(n => n.category === "admin")} onClose={() => setNotifOpen(false)} />
+              )}
+              <div className="h-4" />
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Bottom nav */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-40 bg-white border-t border-slate-100 pb-safe">
         <div className="flex items-center px-1 py-1.5">
@@ -136,17 +332,23 @@ export default function AppShell({ children, business, user }: AppShellProps) {
               item.href === "/dashboard"
                 ? pathname === "/dashboard" || pathname === "/"
                 : pathname.startsWith(item.href);
+            const badge = item.href === "/relances" && relancesCount > 0 ? relancesCount : 0;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-xl transition-colors",
+                  "relative flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-xl transition-colors",
                   isActive ? "text-blue-600" : "text-slate-400"
                 )}
               >
                 <item.icon className={cn("w-5 h-5 transition-all", isActive ? "stroke-[2.5]" : "stroke-2")} />
                 <span className="text-[9px] font-bold tracking-wide">{item.label}</span>
+                {badge > 0 && (
+                  <span className="absolute top-1 right-2.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1">
+                    {badge > 9 ? "9+" : badge}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -164,6 +366,50 @@ export default function AppShell({ children, business, user }: AppShellProps) {
           </button>
         </div>
       </nav>
+    </div>
+  );
+}
+
+// ─── Notification section sub-component ──────────────────────────────────────
+
+function NotifSection({
+  icon, label, color, items, onClose,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  color: string;
+  items: AppNotification[];
+  onClose: () => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="px-4 pt-4">
+      <div className={cn("flex items-center gap-1.5 mb-2", color)}>
+        {icon}
+        <span className="text-xs font-bold uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-bold ml-1 opacity-60">({items.length})</span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {items.map((n) => (
+          <Link
+            key={n.id}
+            href={n.href}
+            onClick={onClose}
+            className="flex items-start gap-3 bg-slate-50 rounded-xl px-3.5 py-3 active:bg-slate-100"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-900 leading-snug">{n.title}</p>
+              {n.subtitle && (
+                <p className="text-xs text-slate-400 mt-0.5 truncate">{n.subtitle}</p>
+              )}
+              {n.timestamp && (
+                <p className="text-[10px] text-slate-300 mt-0.5">{formatDate(n.timestamp)}</p>
+              )}
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-300 mt-0.5 flex-shrink-0" />
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

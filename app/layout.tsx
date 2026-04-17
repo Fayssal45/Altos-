@@ -10,7 +10,7 @@ const geist = Geist({
 
 export const metadata: Metadata = {
   title: "Altos – Gestion Artisan",
-  description: "Devis, factures et chantiers pour artisans du bâtiment",
+  description: "Devis, factures et interventions pour artisans du bâtiment",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

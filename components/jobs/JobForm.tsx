@@ -5,14 +5,27 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, User, FileText, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, User, FileText, Calendar, MapPin, Clock } from "lucide-react";
 import toast from "react-hot-toast";
+import { cn } from "@/lib/utils";
 
 interface JobFormProps {
   businessId: string;
   clients: { id: string; full_name: string; company_name: string | null }[];
   estimates: { id: string; number: string | null; title: string | null; status: string }[];
 }
+
+// Durées prédéfinies (en heures)
+const DURATION_PRESETS = [
+  { label: "1 h",  hours: 1 },
+  { label: "2 h",  hours: 2 },
+  { label: "3 h",  hours: 3 },
+  { label: "½ j",  hours: 4 },
+  { label: "1 j",  hours: 8 },
+  { label: "2 j",  hours: 16 },
+  { label: "3 j",  hours: 24 },
+  { label: "1 sem", hours: 40 },
+];
 
 export default function JobForm({ businessId, clients, estimates }: JobFormProps) {
   const router = useRouter();
@@ -28,9 +41,25 @@ export default function JobForm({ businessId, clients, estimates }: JobFormProps
     description: "",
     notes: "",
   });
+  const [estimatedHours, setEstimatedHours] = useState<number | null>(null);
+  const [customHours, setCustomHours] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
 
-  const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const update = (field: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    };
+
+  const handlePreset = (hours: number) => {
+    setEstimatedHours(hours);
+    setShowCustom(false);
+    setCustomHours("");
+  };
+
+  const handleCustom = (val: string) => {
+    setCustomHours(val);
+    const h = parseFloat(val);
+    setEstimatedHours(h > 0 ? h : null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,12 +78,13 @@ export default function JobForm({ businessId, clients, estimates }: JobFormProps
           address: form.address || null,
           description: form.description || null,
           notes: form.notes || null,
+          estimated_hours: estimatedHours,
           status: "planned",
         })
         .select()
         .single();
       if (error) throw error;
-      toast.success("Chantier créé !");
+      toast.success("Intervention créée !");
       router.push(`/chantiers/${data.id}`);
     } catch {
       toast.error("Erreur lors de la création");
@@ -70,30 +100,32 @@ export default function JobForm({ businessId, clients, estimates }: JobFormProps
           <button onClick={() => router.back()} className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
             <ArrowLeft className="w-4 h-4 text-slate-600" />
           </button>
-          <h1 className="text-lg font-black text-slate-900">Nouveau Chantier</h1>
+          <h1 className="text-lg font-black text-slate-900">Nouvelle Intervention</h1>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
         <div className="px-4 py-4 flex flex-col gap-4">
 
+          {/* Infos de base */}
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
             <Input
-              label="Titre du chantier *"
+              label="Titre de l'intervention *"
               placeholder="Installation VMC salle de bain"
               value={form.title}
               onChange={update("title")}
               required
             />
             <Input
-              label="Adresse du chantier"
-              placeholder="12 rue de la Paix, Paris"
+              label="Adresse de l'intervention"
+              placeholder="Rue des Artisans 12, 1000 Bruxelles"
               icon={<MapPin className="w-4 h-4" />}
               value={form.address}
               onChange={update("address")}
             />
           </section>
 
+          {/* Client + Devis */}
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1.5">
@@ -106,7 +138,9 @@ export default function JobForm({ businessId, clients, estimates }: JobFormProps
               >
                 <option value="">Aucun client sélectionné</option>
                 {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.full_name}{c.company_name ? ` (${c.company_name})` : ""}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.full_name}{c.company_name ? ` (${c.company_name})` : ""}
+                  </option>
                 ))}
               </select>
             </div>
@@ -130,7 +164,8 @@ export default function JobForm({ businessId, clients, estimates }: JobFormProps
             )}
           </section>
 
-          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          {/* Date + Durée */}
+          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
             <Input
               label="Date planifiée"
               type="datetime-local"
@@ -138,8 +173,72 @@ export default function JobForm({ businessId, clients, estimates }: JobFormProps
               value={form.scheduled_date}
               onChange={update("scheduled_date")}
             />
+
+            {/* Durée estimée */}
+            <div>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-2">
+                <Clock className="w-4 h-4" />
+                Durée estimée
+                {estimatedHours && (
+                  <span className="ml-auto text-xs font-semibold text-blue-600">
+                    {estimatedHours < 8
+                      ? `${estimatedHours} heure${estimatedHours > 1 ? "s" : ""}`
+                      : estimatedHours % 8 === 0
+                        ? `${estimatedHours / 8} jour${estimatedHours / 8 > 1 ? "s" : ""}`
+                        : `${Math.floor(estimatedHours / 8)}j ${estimatedHours % 8}h`}
+                  </span>
+                )}
+              </label>
+
+              {/* Presets */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {DURATION_PRESETS.map((p) => (
+                  <button
+                    key={p.hours}
+                    type="button"
+                    onClick={() => handlePreset(p.hours)}
+                    className={cn(
+                      "px-3 py-2 rounded-xl text-sm font-semibold border transition-all",
+                      estimatedHours === p.hours
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-slate-600 border-slate-200 active:bg-slate-50"
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { setShowCustom(!showCustom); setEstimatedHours(null); setCustomHours(""); }}
+                  className={cn(
+                    "px-3 py-2 rounded-xl text-sm font-semibold border transition-all",
+                    showCustom ? "bg-slate-700 text-white border-slate-700" : "bg-white text-slate-600 border-slate-200"
+                  )}
+                >
+                  Autre
+                </button>
+              </div>
+
+              {/* Saisie libre en heures */}
+              {showCustom && (
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="number"
+                    value={customHours}
+                    onChange={(e) => handleCustom(e.target.value)}
+                    placeholder="Ex : 6"
+                    min="0.5"
+                    step="0.5"
+                    inputMode="decimal"
+                    className="w-28 bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                  <span className="text-sm text-slate-500">heures</span>
+                </div>
+              )}
+            </div>
           </section>
 
+          {/* Notes */}
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <label className="text-sm font-medium text-slate-700 block mb-1.5">Notes</label>
             <textarea
@@ -152,7 +251,7 @@ export default function JobForm({ businessId, clients, estimates }: JobFormProps
           </section>
 
           <Button type="submit" size="xl" loading={loading} className="w-full">
-            Créer le chantier
+            Créer l'intervention
           </Button>
 
           <div className="h-6" />

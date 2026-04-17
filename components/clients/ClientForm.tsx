@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, User, Phone, Mail, MapPin, Building2 } from "lucide-react";
+import AddressAutocomplete from "@/components/ui/AddressAutocomplete";
+import { ArrowLeft, User, Phone, Mail, Building2 } from "lucide-react";
 import toast from "react-hot-toast";
 import type { Client } from "@/lib/types";
 
@@ -206,7 +207,7 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
             <Input
               label="Téléphone"
               type="tel"
-              placeholder="+33 6 12 34 56 78"
+              placeholder="+32 470 12 34 56"
               icon={<Phone className="w-4 h-4" />}
               value={form.phone}
               onChange={update("phone")}
@@ -230,19 +231,25 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
 
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Adresse</h2>
-            <Input
+            <AddressAutocomplete
               label="Adresse"
-              placeholder="12 rue de la Paix"
-              icon={<MapPin className="w-4 h-4" />}
+              placeholder="Rue de la Loi 12, Bruxelles"
               value={form.address}
-              onChange={update("address")}
-              autoComplete="street-address"
+              onChange={(v) => setForm((prev) => ({ ...prev, address: v }))}
+              onSelect={(result) =>
+                setForm((prev) => ({
+                  ...prev,
+                  address: result.address || prev.address,
+                  city: result.city || prev.city,
+                  postal_code: result.postal_code || prev.postal_code,
+                }))
+              }
             />
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-1">
                 <Input
                   label="Code postal"
-                  placeholder="75001"
+                  placeholder="1000"
                   value={form.postal_code}
                   onChange={update("postal_code")}
                   inputMode="numeric"
@@ -253,7 +260,7 @@ export default function ClientForm({ businessId, mode, client }: ClientFormProps
               <div className="col-span-2">
                 <Input
                   label="Ville"
-                  placeholder="Paris"
+                  placeholder="Bruxelles"
                   value={form.city}
                   onChange={update("city")}
                   autoComplete="address-level2"

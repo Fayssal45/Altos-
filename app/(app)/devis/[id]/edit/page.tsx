@@ -21,6 +21,12 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
     .eq("business_id", business?.id || "")
     .single();
 
+  const { data: attachments } = await supabase
+    .from("estimate_attachments")
+    .select("*")
+    .eq("estimate_id", id)
+    .order("sort_order");
+
   if (!estimate) notFound();
 
   // Si devis accepté ou payé → vue lecture seule
@@ -43,6 +49,7 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
       clients={(clients || []) as any}
       mode="edit"
       estimate={{ ...estimate, items: sortedItems }}
+      existingAttachments={(attachments || []) as any}
     />
   );
 }

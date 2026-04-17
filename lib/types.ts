@@ -90,6 +90,7 @@ export interface Estimate {
   // Joined
   client?: Client | null;
   items?: EstimateItem[];
+  attachments?: EstimateAttachment[];
 }
 
 export interface EstimateItem {
@@ -129,6 +130,7 @@ export interface Job {
   completed_date: string | null;
   address: string | null;
   notes: string | null;
+  estimated_hours: number | null;
   created_at: string;
   updated_at: string;
   // Joined
@@ -144,6 +146,16 @@ export interface JobPhoto {
   storage_path: string | null;
   type: PhotoType;
   caption: string | null;
+  created_at: string;
+}
+
+export interface EstimateAttachment {
+  id: string;
+  estimate_id: string;
+  url: string;
+  storage_path: string;
+  file_type: "photo" | "video";
+  sort_order: number;
   created_at: string;
 }
 

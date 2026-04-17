@@ -31,7 +31,7 @@ export default function JobList({ jobs, businessId }: JobListProps) {
     <div className="flex flex-col h-full">
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Chantiers</h1>
+          <h1 className="text-2xl font-black text-slate-900">Interventions</h1>
           <p className="text-sm text-slate-500">
             {activeJobs.length} en cours · {completedJobs.length} terminé{completedJobs.length > 1 ? "s" : ""}
           </p>
@@ -73,15 +73,15 @@ export default function JobList({ jobs, businessId }: JobListProps) {
             </div>
             <div>
               <p className="font-bold text-slate-700">
-                {activeTab === "active" ? "Aucun chantier en cours" : "Aucun chantier terminé"}
+                {activeTab === "active" ? "Aucune intervention en cours" : "Aucune intervention terminée"}
               </p>
-              <p className="text-sm text-slate-500 mt-1">Créez un nouveau chantier</p>
+              <p className="text-sm text-slate-500 mt-1">Créez une nouvelle intervention</p>
             </div>
             {activeTab === "active" && (
               <Link href="/chantiers/nouveau">
                 <Button>
                   <Plus className="w-4 h-4" />
-                  Nouveau Chantier
+                  Nouvelle Intervention
                 </Button>
               </Link>
             )}

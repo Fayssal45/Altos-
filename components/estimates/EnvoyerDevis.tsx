@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, getEstimateShareUrl, getWhatsAppReminderText } from "@/lib/utils";
+import { formatCurrency, getEstimateShareUrl, getWhatsAppShareText, formatPhoneForWhatsApp } from "@/lib/utils";
 import type { Business, Estimate, Client } from "@/lib/types";
 import { ArrowLeft, MessageCircle, Mail, Link2, Copy, Check, Share2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -32,13 +32,14 @@ export default function EnvoyerDevis({ estimate, business }: EnvoyerDevisProps) 
   };
 
   const shareViaWhatsApp = () => {
-    const text = getWhatsAppReminderText(
+    const text = getWhatsAppShareText(
       client?.full_name || "Client",
-      estimate.title || "votre chantier",
+      estimate.title || "votre intervention",
       shareUrl,
-      business?.name || "Notre entreprise"
+      business?.name || "Notre entreprise",
+      totalTTC
     );
-    const phone = client?.phone?.replace(/\s/g, "").replace(/^0/, "+33");
+    const phone = client?.phone ? formatPhoneForWhatsApp(client.phone) : null;
     const url = phone
       ? `https://wa.me/${phone}?text=${text}`
       : `https://wa.me/?text=${text}`;

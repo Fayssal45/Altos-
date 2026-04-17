@@ -4,17 +4,20 @@ import { useState, useRef } from "react";
 import { formatCurrency, formatDate, calculateVAT, calculateTTC } from "@/lib/utils";
 import type { Estimate, EstimateItem, Business, Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Check, PenLine, X, Phone, Mail } from "lucide-react";
+import { Check, PenLine, X, Phone, Mail, Video } from "lucide-react";
 import toast from "react-hot-toast";
+
+import type { EstimateAttachment } from "@/lib/types";
 
 type FullEstimate = Estimate & {
   client: Client | null;
   items: EstimateItem[];
   business: Business | null;
+  attachments?: EstimateAttachment[];
 };
 
 export default function ClientEstimateView({ estimate }: { estimate: FullEstimate }) {
-  const { business, client, items } = estimate;
+  const { business, client, items, attachments = [] } = estimate;
   const [signing, setSigning] = useState(false);
   const [signed, setSigned] = useState(!!estimate.signed_at);
   const [signerName, setSignerName] = useState("");
@@ -222,6 +225,44 @@ export default function ClientEstimateView({ estimate }: { estimate: FullEstimat
           })}
         </div>
 
+        {/* Photos & Vidéos */}
+        {attachments.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-50">
+              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+                Photos & Vidéos
+                <span className="ml-2 font-normal normal-case text-slate-400">({attachments.length})</span>
+              </h2>
+            </div>
+            <div className="p-4 grid grid-cols-3 gap-2">
+              {attachments.map((item) => (
+                <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100">
+                  {item.file_type === "video" ? (
+                    <>
+                      <video
+                        src={item.url}
+                        className="w-full h-full object-cover"
+                        controls
+                        playsInline
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-10 h-10 bg-black/50 rounded-full flex items-center justify-center">
+                          <Video className="w-5 h-5 text-white" />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <a href={item.url} target="_blank" rel="noopener noreferrer">
+                      <img src={item.url} alt="" className="w-full h-full object-cover" />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Totaux */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2.5">
           <div className="flex justify-between text-sm">
@@ -263,7 +304,7 @@ export default function ClientEstimateView({ estimate }: { estimate: FullEstimat
               </a>
             )}
             {business?.siret && (
-              <p className="text-xs text-slate-400">SIRET : {business.siret}</p>
+              <p className="text-xs text-slate-400">BCE/KBO : {business.siret}</p>
             )}
             {business?.vat_number && (
               <p className="text-xs text-slate-400">TVA : {business.vat_number}</p>

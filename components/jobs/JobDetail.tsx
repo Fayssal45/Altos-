@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowLeft, Camera, Calendar, MapPin, User, FileText, CheckCircle2, PlayCircle } from "lucide-react";
+import { ArrowLeft, Camera, Calendar, MapPin, User, FileText, CheckCircle2, PlayCircle, Clock, Navigation } from "lucide-react";
 import type { Job, JobPhoto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { formatDate, JOB_STATUS_CONFIG, formatCurrency } from "@/lib/utils";
+import { formatDate, JOB_STATUS_CONFIG, formatCurrency, formatDuration } from "@/lib/utils";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,7 @@ export default function JobDetail({ job: initialJob, photos }: JobDetailProps) {
       const { error } = await supabase.from("jobs").update(updates).eq("id", job.id);
       if (error) throw error;
       setJob((prev) => ({ ...prev, status: status as Job["status"], ...updates }));
-      toast.success(status === "completed" ? "Chantier terminé !" : "Statut mis à jour");
+      toast.success(status === "completed" ? "Intervention terminée !" : "Statut mis à jour");
     } catch {
       toast.error("Erreur lors de la mise à jour");
     } finally {
@@ -91,11 +91,30 @@ export default function JobDetail({ job: initialJob, photos }: JobDetailProps) {
             </div>
           )}
           {job.address && (
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-4 h-4 text-slate-500" />
+            <a
+              href={`https://waze.com/ul?q=${encodeURIComponent(job.address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 active:opacity-70"
+            >
+              <div className="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0">
+                <Navigation className="w-4 h-4 text-sky-500" />
               </div>
-              <p className="text-sm font-semibold text-slate-900">{job.address}</p>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{job.address}</p>
+                <p className="text-xs text-sky-500">Ouvrir dans Waze</p>
+              </div>
+            </a>
+          )}
+          {job.estimated_hours && (
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{formatDuration(job.estimated_hours)}</p>
+                <p className="text-xs text-slate-400">Durée estimée</p>
+              </div>
             </div>
           )}
           {job.estimate && (

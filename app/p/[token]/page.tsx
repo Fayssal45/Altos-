@@ -37,12 +37,19 @@ export default async function PublicEstimatePage({ params }: { params: Promise<{
       .eq("id", estimate.id);
   }
 
+  // Pièces jointes
+  const { data: attachments } = await admin
+    .from("estimate_attachments")
+    .select("*")
+    .eq("estimate_id", estimate.id)
+    .order("sort_order");
+
   // Trier les items
   const sortedItems = [...(estimate.items || [])].sort((a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order);
 
   return (
     <ClientEstimateView
-      estimate={{ ...estimate, items: sortedItems }}
+      estimate={{ ...estimate, items: sortedItems, attachments: attachments || [] }}
     />
   );
 }

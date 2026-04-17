@@ -108,13 +108,12 @@ export default function ClientList({ clients }: ClientListProps) {
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {client.phone && (
-                          <a
-                            href={`tel:${client.phone}`}
-                            onClick={(e) => e.stopPropagation()}
+                          <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `tel:${client.phone}`; }}
                             className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center"
                           >
                             <Phone className="w-4 h-4 text-slate-500" />
-                          </a>
+                          </button>
                         )}
                         <ChevronRight className="w-4 h-4 text-slate-300 ml-1" />
                       </div>

@@ -40,16 +40,56 @@ export function getEstimateShareUrl(shareToken: string): string {
   return `${base}/p/${shareToken}`;
 }
 
+// Formate un numéro de téléphone pour WhatsApp (format international belge)
+export function formatPhoneForWhatsApp(phone: string): string {
+  const cleaned = phone.replace(/[\s\-\.\(\)\/]/g, "");
+  if (cleaned.startsWith("+")) return cleaned;
+  if (cleaned.startsWith("0032")) return "+" + cleaned.slice(2);
+  if (cleaned.startsWith("0")) return "+32" + cleaned.slice(1);
+  return cleaned;
+}
+
+// Texte d'envoi initial d'un devis WhatsApp
+export function getWhatsAppShareText(
+  clientName: string,
+  jobTitle: string,
+  shareUrl: string,
+  businessName: string,
+  amount?: number
+): string {
+  const amountText = amount ? ` de ${formatCurrency(amount)}` : "";
+  return encodeURIComponent(
+    `Bonjour ${clientName},\n\nVoici votre devis${amountText} pour "${jobTitle}".\nVous pouvez le consulter et le signer directement ici : ${shareUrl}\n\nCordialement,\n${businessName}`
+  );
+}
+
 // Texte de relance WhatsApp pré-rédigé
 export function getWhatsAppReminderText(
   clientName: string,
   jobTitle: string,
   shareUrl: string,
-  businessName: string
+  businessName: string,
+  amount?: number
 ): string {
+  const amountText = amount ? ` de ${formatCurrency(amount)}` : "";
   return encodeURIComponent(
-    `Bonjour ${clientName},\n\nJ'espère que vous allez bien. Avez-vous pu consulter mon devis pour "${jobTitle}" ?\n\nJe reste disponible pour toute question : ${shareUrl}\n\nCordialement,\n${businessName}`
+    `Bonjour ${clientName},\n\nAvez-vous pu consulter mon devis${amountText} pour "${jobTitle}" ?\n\nJe reste disponible pour toute question : ${shareUrl}\n\nCordialement,\n${businessName}`
   );
+}
+
+// Formate une durée en heures de manière lisible
+export function formatDuration(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)} min`;
+  if (hours === 0.5) return "30 min";
+  if (hours === 4) return "½ journée";
+  if (hours === 8) return "1 journée";
+  if (hours % 8 === 0) return `${hours / 8} jour${hours / 8 > 1 ? "s" : ""}`;
+  if (hours > 8) {
+    const days = Math.floor(hours / 8);
+    const rem = hours % 8;
+    return rem > 0 ? `${days}j ${rem}h` : `${days} jour${days > 1 ? "s" : ""}`;
+  }
+  return `${hours} h`;
 }
 
 // Status badge config

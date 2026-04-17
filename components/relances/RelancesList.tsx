@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Bell, MessageCircle, Eye, Clock, Check, X, Send } from "lucide-react";
-import { formatCurrency, formatDate, getEstimateShareUrl, getWhatsAppReminderText } from "@/lib/utils";
+import { formatCurrency, formatDate, getEstimateShareUrl, getWhatsAppReminderText, formatPhoneForWhatsApp } from "@/lib/utils";
 import type { Estimate, Reminder, Business, Client } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
@@ -28,11 +28,11 @@ export default function RelancesList({ viewedEstimates, reminders, business }: R
     const url = getEstimateShareUrl(estimate.share_token);
     const text = getWhatsAppReminderText(
       client.full_name,
-      estimate.title || "votre chantier",
+      estimate.title || "votre intervention",
       url,
       business?.name || "Notre entreprise"
     );
-    const phone = client.phone?.replace(/\s/g, "").replace(/^0/, "+33");
+    const phone = client.phone?.replace(/\s/g, "").replace(/^0/, "+32");
     window.open(phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`, "_blank");
   };
 
@@ -178,11 +178,11 @@ export default function RelancesList({ viewedEstimates, reminders, business }: R
                             const url = getEstimateShareUrl(reminder.estimate!.share_token!);
                             const text = getWhatsAppReminderText(
                               reminder.client!.full_name,
-                              reminder.estimate!.title || "votre chantier",
+                              reminder.estimate!.title || "votre intervention",
                               url,
                               business?.name || ""
                             );
-                            const phone = reminder.client!.phone?.replace(/\s/g, "").replace(/^0/, "+33");
+                            const phone = reminder.client!.phone?.replace(/\s/g, "").replace(/^0/, "+32");
                             window.open(`https://wa.me/${phone}?text=${text}`, "_blank");
                             markReminderSent(reminder.id);
                           }}

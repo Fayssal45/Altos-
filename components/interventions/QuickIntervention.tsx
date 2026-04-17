@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 import {
-  ArrowLeft, ArrowRight, Check, User, Wrench,
-  Euro, Banknote, CreditCard, MessageCircle, Zap,
-  Plus, Trash2, Search, X
+  ArrowLeft, ArrowRight, Check, User,
+  Banknote, CreditCard, MessageCircle, Zap,
+  Plus, Trash2, Search, X, PenLine,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { Business, Client } from "@/lib/types";
@@ -29,7 +29,7 @@ interface ServiceLine {
   unit_price: number;
 }
 
-const STEPS = ["Client", "Prestations", "Validation"];
+const STEPS = ["Client", "Prestations", "Validation", "Signature"];
 
 const newLine = (): ServiceLine => ({
   id: crypto.randomUUID(),
@@ -49,8 +49,6 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
   // Step 0 – Client
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientSearch, setClientSearch] = useState("");
-  const [showClientPicker, setShowClientPicker] = useState(false);
-  // Nouveau client inline
   const [newClient, setNewClient] = useState({ full_name: "", phone: "", address: "", email: "" });
   const [isNewClient, setIsNewClient] = useState(false);
 
@@ -60,6 +58,37 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
   // Step 2 – Validation & Paiement
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "link" | null>(null);
   const [notes, setNotes] = useState("");
+
+  // Step 3 – Signature (optionnelle)
+  const [withSignature, setWithSignature] = useState(false);
+  const [signerName, setSignerName] = useState("");
+  const [drawing, setDrawing] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const getPos = (e: React.TouchEvent | React.MouseEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    if ("touches" in e) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  };
+  const startDraw = (e: React.TouchEvent | React.MouseEvent) => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    e.preventDefault(); setDrawing(true); lastPosRef.current = getPos(e, canvas);
+  };
+  const draw = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!drawing || !canvasRef.current) return; e.preventDefault();
+    const canvas = canvasRef.current; const ctx = canvas.getContext("2d");
+    if (!ctx || !lastPosRef.current) return;
+    const pos = getPos(e, canvas);
+    ctx.beginPath(); ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
+    ctx.lineTo(pos.x, pos.y); ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 2.5;
+    ctx.lineCap = "round"; ctx.stroke(); lastPosRef.current = pos;
+  };
+  const endDraw = () => { setDrawing(false); lastPosRef.current = null; };
+  const clearCanvas = () => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+  };
 
   const totalHT = lines.reduce((s, l) => s + l.quantity * l.unit_price, 0);
   const vatRate = business?.vat_regime === "none" || business?.vat_regime === "micro" ? 0 : 20;
@@ -77,39 +106,48 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
     if (!business?.id) { toast.error("Configurez d'abord votre entreprise"); return; }
     if (!paymentMethod) { toast.error("Choisissez un mode de paiement"); return; }
 
+    // Si signature demandée mais pas encore validée → aller à l'étape signature
+    if (withSignature && step === 2) { setStep(3); return; }
+
     setLoading(true);
     try {
       let clientId: string | null = null;
 
-      // Créer ou récupérer le client
       if (isNewClient) {
         if (!newClient.full_name || !newClient.phone) {
-          toast.error("Nom et téléphone obligatoires");
-          setLoading(false);
-          return;
+          toast.error("Nom et téléphone obligatoires"); setLoading(false); return;
         }
         const { data: c, error } = await supabase
           .from("clients")
           .insert({ ...newClient, business_id: business.id })
-          .select()
-          .single();
+          .select().single();
         if (error) throw error;
         clientId = c.id;
       } else {
         clientId = selectedClient?.id || null;
       }
 
-      const clientName = isNewClient ? newClient.full_name : selectedClient?.full_name || "Client";
       const firstService = lines[0]?.description || "Intervention";
 
-      // Numéro auto
-      const { data: numData } = await supabase.rpc("generate_estimate_number", {
-        p_business_id: business.id,
-      });
+      const { data: numData } = await supabase.rpc("generate_estimate_number", { p_business_id: business.id });
 
       const status = paymentMethod === "cash" || paymentMethod === "card" ? "paid" : "accepted";
 
-      // Créer le devis/facture
+      // Préparer la signature si disponible
+      let signatureData: Record<string, unknown> = {};
+      if (withSignature && signerName.trim() && canvasRef.current) {
+        const ctx = canvasRef.current.getContext("2d");
+        const imageData = ctx?.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
+        const hasSignature = imageData?.data.some((v, i) => i % 4 === 3 && v > 0);
+        if (hasSignature) {
+          signatureData = {
+            signed_at: new Date().toISOString(),
+            signed_by_name: signerName.trim(),
+            signature_svg: canvasRef.current.toDataURL("image/png"),
+          };
+        }
+      }
+
       const { data: estimate, error: estError } = await supabase
         .from("estimates")
         .insert({
@@ -122,12 +160,11 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
           notes,
           issued_at: new Date().toISOString(),
           paid_at: status === "paid" ? new Date().toISOString() : null,
+          ...signatureData,
         })
-        .select()
-        .single();
+        .select().single();
       if (estError) throw estError;
 
-      // Insérer les lignes
       await supabase.from("estimate_items").insert(
         lines.map((l, i) => ({
           estimate_id: estimate.id,
@@ -140,7 +177,6 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
         }))
       );
 
-      // Créer le chantier automatiquement
       await supabase.from("jobs").insert({
         business_id: business.id,
         client_id: clientId,
@@ -153,7 +189,6 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
 
       toast.success("Intervention enregistrée !");
 
-      // Redirection selon paiement
       if (paymentMethod === "link") {
         router.push(`/devis/${estimate.id}/envoyer`);
       } else {
@@ -531,6 +566,82 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
               />
             </div>
 
+            {/* Option signature */}
+            <button
+              onClick={() => setWithSignature(!withSignature)}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl p-4 border-2 text-left transition-all w-full",
+                withSignature ? "border-blue-300 bg-blue-50" : "bg-white border-slate-200"
+              )}
+            >
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                withSignature ? "bg-blue-100" : "bg-slate-100")}>
+                <PenLine className={cn("w-5 h-5", withSignature ? "text-blue-600" : "text-slate-400")} />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-slate-900">Faire signer le client</p>
+                <p className="text-xs text-slate-400">Signature électronique sur écran</p>
+              </div>
+              {withSignature && (
+                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3.5 h-3.5 text-white" />
+                </div>
+              )}
+            </button>
+
+            <Button
+              size="xl"
+              onClick={handleSubmit}
+              loading={loading}
+              variant="success"
+              className="w-full"
+            >
+              <Check className="w-5 h-5" />
+              {withSignature ? "Continuer vers la signature" : "Valider l'intervention"}
+            </Button>
+          </>
+        )}
+
+        {/* ── ÉTAPE 3 : SIGNATURE ──────────────────────────────────────── */}
+        {step === 3 && (
+          <>
+            <p className="text-sm text-slate-500">Faites signer votre client pour confirmer l'intervention</p>
+
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-bold text-slate-900">Signature du client</p>
+                <span className="text-xs text-slate-400">Optionnel</span>
+              </div>
+
+              <input
+                value={signerName}
+                onChange={(e) => setSignerName(e.target.value)}
+                placeholder="Nom complet du signataire"
+                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base mb-3 focus:outline-none focus:border-blue-500"
+              />
+
+              <div className="relative border-2 border-slate-200 rounded-xl overflow-hidden bg-slate-50 mb-3">
+                <canvas
+                  ref={canvasRef}
+                  width={340}
+                  height={120}
+                  className="w-full touch-none"
+                  onMouseDown={startDraw}
+                  onMouseMove={draw}
+                  onMouseUp={endDraw}
+                  onTouchStart={startDraw}
+                  onTouchMove={draw}
+                  onTouchEnd={endDraw}
+                />
+                <p className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm pointer-events-none select-none">
+                  Signez ici avec votre doigt
+                </p>
+                <button onClick={clearCanvas} className="absolute top-2 right-2 text-xs text-slate-400 font-medium">
+                  Effacer
+                </button>
+              </div>
+            </div>
+
             <Button
               size="xl"
               onClick={handleSubmit}
@@ -541,6 +652,13 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
               <Check className="w-5 h-5" />
               Valider l'intervention
             </Button>
+
+            <button
+              onClick={handleSubmit}
+              className="text-sm text-slate-400 font-medium text-center w-full py-2"
+            >
+              Passer la signature →
+            </button>
           </>
         )}
 

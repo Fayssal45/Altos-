@@ -7,7 +7,7 @@ export default async function DevisPage() {
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id")
+    .select("*")
     .eq("owner_id", user!.id)
     .single();
 
@@ -18,5 +18,5 @@ export default async function DevisPage() {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  return <EstimateList estimates={estimates || []} />;
+  return <EstimateList estimates={estimates || []} businessName={business?.name || ""} business={business} />;
 }

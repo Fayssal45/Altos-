@@ -66,7 +66,7 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [addType, setAddType] = useState<"visit" | "reminder" | null>(null);
-  const [addForm, setAddForm] = useState({ title: "", clientId: "", time: "09:00", notes: "" });
+  const [addForm, setAddForm] = useState({ title: "", clientId: "", time: "09:00", notes: "", estimatedHours: "" });
   const [saving, setSaving] = useState(false);
 
   const year = viewDate.getFullYear();
@@ -151,6 +151,7 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
             status: "planned",
             scheduled_date: dateTime,
             notes: addForm.notes || null,
+            estimated_hours: addForm.estimatedHours ? parseFloat(addForm.estimatedHours) : null,
           })
           .select("id")
           .single();
@@ -159,7 +160,7 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
         router.refresh();
         setShowAddSheet(false);
         setAddType(null);
-        setAddForm({ title: "", clientId: "", time: "09:00", notes: "" });
+        setAddForm({ title: "", clientId: "", time: "09:00", notes: "", estimatedHours: "" });
         if (data?.id) router.push(`/chantiers/${data.id}`);
       } else {
         const { error } = await supabase
@@ -177,7 +178,7 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
         router.refresh();
         setShowAddSheet(false);
         setAddType(null);
-        setAddForm({ title: "", clientId: "", time: "09:00", notes: "" });
+        setAddForm({ title: "", clientId: "", time: "09:00", notes: "", estimatedHours: "" });
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'enregistrement");
@@ -364,6 +365,23 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
                         className="bg-white border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500"
                       />
                     </div>
+                    {addType === "visit" && (
+                      <select
+                        value={addForm.estimatedHours}
+                        onChange={e => setAddForm(f => ({ ...f, estimatedHours: e.target.value }))}
+                        className="bg-white border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 col-span-2"
+                      >
+                        <option value="">Durée estimée</option>
+                        <option value="1">1 heure</option>
+                        <option value="2">2 heures</option>
+                        <option value="3">3 heures</option>
+                        <option value="4">½ journée (4h)</option>
+                        <option value="8">1 journée (8h)</option>
+                        <option value="16">2 jours</option>
+                        <option value="24">3 jours</option>
+                        <option value="40">1 semaine</option>
+                      </select>
+                    )}
                     <textarea
                       placeholder="Notes..."
                       value={addForm.notes}

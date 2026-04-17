@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Send, Eye, Check, CreditCard, MessageCircle } from "lucide-react";
-import { formatCurrency, formatDate, ESTIMATE_STATUS_CONFIG, getEstimateShareUrl, getWhatsAppReminderText } from "@/lib/utils";
+import { ArrowLeft, Send, Eye, Check, CreditCard, MessageCircle, Download } from "lucide-react";
+import { formatCurrency, formatDate, ESTIMATE_STATUS_CONFIG, getEstimateShareUrl, getWhatsAppReminderText, formatPhoneForWhatsApp } from "@/lib/utils";
 import type { Estimate, EstimateItem, Business, Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { generateEstimatePdf } from "@/lib/generateEstimatePdf";
+import toast from "react-hot-toast";
 
 type FullEstimate = Estimate & {
   client: Client | null;
@@ -19,6 +22,7 @@ export default function EstimateDetailView({
   business: Business | null;
 }) {
   const router = useRouter();
+  const [pdfLoading, setPdfLoading] = useState(false);
   const statusConfig = ESTIMATE_STATUS_CONFIG[estimate.status];
   const totalHT = estimate.total_amount_ht || 0;
   const vatAmount = totalHT * (estimate.vat_rate || 20) / 100;
@@ -27,15 +31,27 @@ export default function EstimateDetailView({
 
   const shareUrl = estimate.share_token ? getEstimateShareUrl(estimate.share_token) : "";
 
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      await generateEstimatePdf(estimate, business, client);
+    } catch {
+      toast.error("Erreur lors de la génération du PDF");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   const sendReminder = () => {
     if (!client || !shareUrl) return;
     const text = getWhatsAppReminderText(
       client.full_name,
-      estimate.title || "votre chantier",
+      estimate.title || "votre intervention",
       shareUrl,
-      business?.name || ""
+      business?.name || "",
+      totalTTC
     );
-    const phone = client.phone?.replace(/\s/g, "").replace(/^0/, "+33");
+    const phone = client.phone ? formatPhoneForWhatsApp(client.phone) : null;
     window.open(phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`, "_blank");
   };
 
@@ -150,6 +166,16 @@ export default function EstimateDetailView({
               Renvoyer le devis
             </Button>
           )}
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={handleDownloadPdf}
+            loading={pdfLoading}
+            className="w-full"
+          >
+            <Download className="w-5 h-5" />
+            Télécharger PDF
+          </Button>
         </div>
 
         <div className="h-4" />

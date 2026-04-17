@@ -29,8 +29,8 @@ const ACTIVITIES = [
 ];
 
 const VAT_REGIMES = [
-  { value: "normal", label: "Assujetti TVA (régime normal)" },
-  { value: "micro", label: "Micro-entreprise (franchise de TVA)" },
+  { value: "normal", label: "Assujetti à la TVA (régime normal)" },
+  { value: "micro", label: "Petite entreprise (franchise de TVA – art. 56bis)" },
   { value: "none", label: "Non assujetti à la TVA" },
 ];
 
@@ -47,6 +47,7 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
     phone: business?.phone || "",
     email: business?.email || "",
     address: business?.address || "",
+    siret: business?.siret || "",
     vat_number: business?.vat_number || "",
     iban: business?.iban || "",
     payment_terms: business?.payment_terms || "30 jours",
@@ -104,7 +105,7 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
       }
 
       toast.success("Entreprise enregistrée !");
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     } catch (err: unknown) {
       const supaErr = err as { message?: string; code?: string };
@@ -192,7 +193,7 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
             <Input
               label="Téléphone"
               type="tel"
-              placeholder="06 12 34 56 78"
+              placeholder="+32 470 12 34 56"
               icon={<Phone className="w-4 h-4" />}
               value={form.phone}
               onChange={update("phone")}
@@ -200,14 +201,14 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
             <Input
               label="Email"
               type="email"
-              placeholder="contact@dupont-elec.fr"
+              placeholder="contact@dupont-elec.be"
               icon={<Mail className="w-4 h-4" />}
               value={form.email}
               onChange={update("email")}
             />
             <Input
               label="Adresse"
-              placeholder="12 rue de la Paix, 75001 Paris"
+              placeholder="Rue des Artisans 12, 1000 Bruxelles"
               icon={<MapPin className="w-4 h-4" />}
               value={form.address}
               onChange={update("address")}
@@ -217,6 +218,15 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
           {/* Fiscalité */}
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Informations fiscales</h2>
+            <Input
+              label="N° d'entreprise (BCE/KBO)"
+              placeholder="0636.123.456"
+              value={form.siret}
+              onChange={update("siret")}
+            />
+            <p className="text-xs text-slate-400 -mt-2">
+              10 chiffres · Visible sur vos devis
+            </p>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1.5">Régime TVA</label>
               <select
@@ -228,13 +238,13 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
               </select>
             </div>
             <Input
-              label="N° TVA intracommunautaire (UE)"
-              placeholder="FR12345678901 / BE0123456789 / DE123456789"
+              label="N° TVA intracommunautaire"
+              placeholder="BE0636.123.456"
               value={form.vat_number}
               onChange={update("vat_number")}
             />
             <p className="text-xs text-slate-400 -mt-2">
-              Numéro de TVA UE · Affiché sur vos devis et factures
+              Format belge : BE + 10 chiffres · Affiché sur vos devis
             </p>
           </section>
 
@@ -243,7 +253,7 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Paiement</h2>
             <Input
               label="IBAN"
-              placeholder="FR76 3000 6000 0112 3456 7890 189"
+              placeholder="BE68 5390 0754 7034"
               icon={<CreditCard className="w-4 h-4" />}
               value={form.iban}
               onChange={update("iban")}
