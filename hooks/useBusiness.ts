@@ -79,7 +79,7 @@ export function useDashboardMetrics(businessId: string | undefined) {
         (rows || []).reduce((s, e) => s + e.total_amount_ht * (1 + e.vat_rate / 100), 0);
 
       return {
-        pendingEstimatesAmount: (pendingEstimates || []).reduce((s, e) => s + e.total_amount_ht, 0),
+        pendingEstimatesAmount: (pendingEstimates || []).reduce((s: number, e: { total_amount_ht: number }) => s + e.total_amount_ht, 0),
         pendingReminders: pendingReminders?.length || 0,
         activeJobs: activeJobs?.length || 0,
         monthRevenue: toTTC(paidThisMonth),

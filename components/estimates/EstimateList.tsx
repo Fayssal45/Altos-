@@ -8,7 +8,7 @@ import {
   Copy, Archive, MessageCircle, Send, Pencil, Download, CreditCard,
 } from "lucide-react";
 import { formatCurrency, formatDate, ESTIMATE_STATUS_CONFIG, getEstimateShareUrl, getWhatsAppShareText, formatPhoneForWhatsApp } from "@/lib/utils";
-import type { Estimate, Business } from "@/lib/types";
+import type { Estimate, Business, EstimateItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -161,7 +161,7 @@ export default function EstimateList({ estimates: initialEstimates, businessName
         .order("sort_order");
       if (items?.length) {
         await supabase.from("estimate_items").insert(
-          items.map(({ id: _id, estimate_id: _eid, created_at: _cat, ...item }) => ({
+          items.map(({ id: _id, estimate_id: _eid, created_at: _cat, ...item }: EstimateItem) => ({
             ...item,
             estimate_id: newEstimate.id,
           }))

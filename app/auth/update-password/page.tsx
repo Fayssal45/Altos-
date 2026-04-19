@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import type { AuthChangeEvent } from "@supabase/supabase-js";
 import { Zap, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -20,7 +21,7 @@ export default function UpdatePasswordPage() {
   // Supabase sends the token in the URL fragment (#access_token=...)
   // The client SDK auto-handles this on mount
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
       if (event === "PASSWORD_RECOVERY") {
         setReady(true);
       }

@@ -185,7 +185,7 @@ export default function ProfilView({ business, profile, email }: ProfilViewProps
       }
 
       // Fetch items for each estimate
-      const ids = estimates.map((e) => e.id);
+      const ids = estimates.map((e: { id: string }) => e.id);
       const { data: items } = await supabase
         .from("estimate_items")
         .select("*")
