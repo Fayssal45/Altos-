@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import AppShell from "@/components/layout/AppShell";
 import SWRProvider from "@/components/providers/SWRProvider";
+import { AppModeProvider } from "@/contexts/AppModeContext";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient();
@@ -75,13 +76,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SWRProvider fallback={swrFallback}>
-      <AppShell
-        business={business}
-        user={session.user}
-        relancesCount={relancesCount}
-      >
-        {children}
-      </AppShell>
+      <AppModeProvider>
+        <AppShell
+          business={business}
+          user={session.user}
+          relancesCount={relancesCount}
+        >
+          {children}
+        </AppShell>
+      </AppModeProvider>
     </SWRProvider>
   );
 }

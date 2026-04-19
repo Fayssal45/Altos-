@@ -1,6 +1,19 @@
-import { redirect } from "next/navigation";
+"use client";
 
-// "/" redirige vers /dashboard pour les utilisateurs connectés
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+// Redirects to the mode home on first load.
+// terrain → /planning, admin → /dashboard (default)
 export default function HomePage() {
-  redirect("/dashboard");
+  const router = useRouter();
+  useEffect(() => {
+    try {
+      const mode = localStorage.getItem("altos-mode");
+      router.replace("/terrain"); // shared home for both modes
+    } catch {
+      router.replace("/planning");
+    }
+  }, [router]);
+  return null;
 }

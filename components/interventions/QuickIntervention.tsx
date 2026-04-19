@@ -206,32 +206,36 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
   return (
     <div className="flex flex-col h-full bg-slate-50">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-3">
+      <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-2.5">
         <div className="flex items-center gap-3">
           <button onClick={() => step === 0 ? router.back() : setStep(step - 1)}
-            className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+            className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
             <ArrowLeft className="w-4 h-4 text-slate-600" />
           </button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="w-4 h-4 text-amber-500" />
-              <h1 className="text-base font-black text-slate-900">Intervention rapide</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+              <h1 className="text-sm font-black text-slate-900 leading-none">
+                Intervention rapide
+                <span className="text-slate-400 font-medium"> · {STEPS[step]}</span>
+              </h1>
             </div>
-            {/* Stepper */}
-            <div className="flex items-center gap-1.5">
-              {STEPS.map((s, i) => (
-                <div key={i} className="flex items-center gap-1.5">
+            {/* Compact stepper: dots + connectors, no text labels (avoids overflow) */}
+            <div className="flex items-center">
+              {STEPS.map((_, i) => (
+                <div key={i} className="flex items-center flex-1 last:flex-none">
                   <div className={cn(
-                    "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black",
-                    i < step ? "bg-emerald-500 text-white" :
-                    i === step ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-400"
+                    "w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-colors",
+                    i < step ? "bg-emerald-500" : i === step ? "bg-blue-600" : "bg-slate-200"
                   )}>
-                    {i < step ? <Check className="w-3 h-3" /> : i + 1}
+                    {i < step
+                      ? <Check className="w-2.5 h-2.5 text-white" />
+                      : <span className={cn("text-[8px] font-black leading-none", i === step ? "text-white" : "text-slate-400")}>{i + 1}</span>
+                    }
                   </div>
-                  <span className={cn("text-[10px] font-semibold", i === step ? "text-blue-600" : "text-slate-400")}>
-                    {s}
-                  </span>
-                  {i < STEPS.length - 1 && <div className="w-4 h-px bg-slate-200" />}
+                  {i < STEPS.length - 1 && (
+                    <div className={cn("flex-1 h-0.5 mx-1", i < step ? "bg-emerald-400" : "bg-slate-200")} />
+                  )}
                 </div>
               ))}
             </div>
@@ -239,7 +243,7 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
 
         {/* ── ÉTAPE 0 : CLIENT ─────────────────────────────────────────── */}
         {step === 0 && (
@@ -293,19 +297,19 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
                     />
                   </div>
                   <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    {filteredClients.slice(0, 6).map((c, i) => (
+                    {filteredClients.slice(0, 8).map((c, i) => (
                       <button
                         key={c.id}
                         onClick={() => setSelectedClient(c)}
-                        className={cn("w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-slate-50",
-                          i < Math.min(filteredClients.length, 6) - 1 && "border-b border-slate-50")}
+                        className={cn("w-full flex items-center gap-2.5 px-4 py-2.5 text-left active:bg-slate-50",
+                          i < Math.min(filteredClients.length, 8) - 1 && "border-b border-slate-50")}
                       >
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-bold text-slate-500">{c.full_name[0]}</span>
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-slate-500">{c.full_name[0]}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-slate-900">{c.full_name}</p>
-                          {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
+                          <p className="text-sm font-semibold text-slate-900 truncate">{c.full_name}</p>
+                          {c.phone && <p className="text-xs text-slate-400 truncate">{c.phone}</p>}
                         </div>
                       </button>
                     ))}
@@ -402,59 +406,59 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
             {/* Lignes */}
             <div className="flex flex-col gap-2">
               {lines.map((line, idx) => (
-                <div key={line.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                  <div className="flex items-start gap-2 mb-3">
+                <div key={line.id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+                  <div className="flex items-center gap-2 mb-2">
                     <input
                       value={line.description}
                       onChange={(e) => setLines((prev) => prev.map((l) => l.id === line.id ? { ...l, description: e.target.value } : l))}
                       placeholder={`Prestation ${idx + 1}…`}
-                      className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-base focus:outline-none focus:border-blue-500"
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                     />
                     {lines.length > 1 && (
                       <button
                         onClick={() => setLines((prev) => prev.filter((l) => l.id !== line.id))}
-                        className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0"
+                        className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0"
                       >
-                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-[10px] text-slate-400 font-medium block mb-1">Qté</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-400 font-medium block mb-0.5">Qté</label>
                       <input
                         type="number"
                         value={line.quantity}
                         onChange={(e) => setLines((prev) => prev.map((l) => l.id === line.id ? { ...l, quantity: parseFloat(e.target.value) || 1 } : l))}
                         min="0.5" step="0.5"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-sm font-semibold text-center focus:outline-none focus:border-blue-500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-semibold text-center focus:outline-none focus:border-blue-500"
                       />
                     </div>
-                    <div>
-                      <label className="text-[10px] text-slate-400 font-medium block mb-1">Unité</label>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-400 font-medium block mb-0.5">Unité</label>
                       <select
                         value={line.unit}
                         onChange={(e) => setLines((prev) => prev.map((l) => l.id === line.id ? { ...l, unit: e.target.value } : l))}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-sm font-semibold text-center focus:outline-none appearance-none"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-semibold text-center focus:outline-none appearance-none"
                       >
                         {["u","h","m","m²","forfait","jour"].map((u) => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </div>
-                    <div>
-                      <label className="text-[10px] text-slate-400 font-medium block mb-1">Prix €</label>
+                    <div className="flex-[2]">
+                      <label className="text-[10px] text-slate-400 font-medium block mb-0.5">Prix unitaire €</label>
                       <input
                         type="number"
                         value={line.unit_price}
                         onChange={(e) => setLines((prev) => prev.map((l) => l.id === line.id ? { ...l, unit_price: parseFloat(e.target.value) || 0 } : l))}
                         min="0" step="0.01" inputMode="decimal"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-sm font-semibold text-right focus:outline-none focus:border-blue-500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-semibold text-right focus:outline-none focus:border-blue-500"
                       />
                     </div>
-                  </div>
-                  <div className="text-right mt-2">
-                    <span className="text-xs font-black text-slate-600 tabular-nums">
-                      = {formatCurrency(line.quantity * line.unit_price)}
-                    </span>
+                    <div className="text-right flex-shrink-0 self-end pb-1">
+                      <span className="text-xs font-black text-slate-700 tabular-nums">
+                        {formatCurrency(line.quantity * line.unit_price)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -532,21 +536,21 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
                     key={m.key}
                     onClick={() => setPaymentMethod(m.key as any)}
                     className={cn(
-                      "flex items-center gap-3 rounded-2xl p-4 border-2 text-left transition-all",
+                      "flex items-center gap-3 rounded-xl p-3 border-2 text-left transition-all",
                       paymentMethod === m.key ? m.color : "bg-white border-slate-200"
                     )}
                   >
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-                      paymentMethod === m.key ? "bg-white shadow" : "bg-slate-100")}>
-                      <m.icon className={cn("w-5 h-5", paymentMethod === m.key ? "text-slate-700" : "text-slate-400")} />
+                    <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+                      paymentMethod === m.key ? "bg-white shadow-sm" : "bg-slate-100")}>
+                      <m.icon className={cn("w-4.5 h-4.5", paymentMethod === m.key ? "text-slate-700" : "text-slate-400")} />
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-slate-900">{m.label}</p>
-                      <p className="text-xs text-slate-400">{m.sub}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900">{m.label}</p>
+                      <p className="text-xs text-slate-400 truncate">{m.sub}</p>
                     </div>
                     {paymentMethod === m.key && (
-                      <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                        <Check className="w-3.5 h-3.5 text-white" />
+                      <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3 h-3 text-white" />
                       </div>
                     )}
                   </button>
@@ -570,21 +574,21 @@ export default function QuickIntervention({ business, clients }: QuickInterventi
             <button
               onClick={() => setWithSignature(!withSignature)}
               className={cn(
-                "flex items-center gap-3 rounded-2xl p-4 border-2 text-left transition-all w-full",
+                "flex items-center gap-3 rounded-xl p-3 border-2 text-left transition-all w-full",
                 withSignature ? "border-blue-300 bg-blue-50" : "bg-white border-slate-200"
               )}
             >
-              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
                 withSignature ? "bg-blue-100" : "bg-slate-100")}>
-                <PenLine className={cn("w-5 h-5", withSignature ? "text-blue-600" : "text-slate-400")} />
+                <PenLine className={cn("w-4 h-4", withSignature ? "text-blue-600" : "text-slate-400")} />
               </div>
               <div className="flex-1">
-                <p className="font-bold text-slate-900">Faire signer le client</p>
+                <p className="text-sm font-bold text-slate-900">Faire signer le client</p>
                 <p className="text-xs text-slate-400">Signature électronique sur écran</p>
               </div>
               {withSignature && (
-                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-                  <Check className="w-3.5 h-3.5 text-white" />
+                <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
                 </div>
               )}
             </button>

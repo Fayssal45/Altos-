@@ -8,7 +8,7 @@ import {
   Building2, ChevronRight, LogOut,
   FileText, CreditCard, HelpCircle, Bell, BookOpen,
   Shield, Lock, Download, Send, Phone, Loader2,
-  CheckCircle2, Mail, ToggleLeft, ToggleRight,
+  CheckCircle2, Mail, ToggleLeft, ToggleRight, Calculator,
 } from "lucide-react";
 import type { Business, Profile } from "@/lib/types";
 import toast from "react-hot-toast";
@@ -304,7 +304,22 @@ export default function ProfilView({ business, profile, email }: ProfilViewProps
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Mon Entreprise</h2>
           <SectionCard>
             <SectionRow icon={Building2} label="Infos & Logo" href="/profil/entreprise" />
-            <SectionRow icon={CreditCard} label="Paiement & IBAN" href="/profil/entreprise" border={false} />
+            <SectionRow icon={CreditCard} label="Paiement & IBAN" href="/profil/entreprise" />
+            <SectionRow
+              icon={Calculator}
+              iconBg="bg-violet-50"
+              iconColor="text-violet-600"
+              label="Comptabilité & Facturation"
+              sublabel={
+                business?.accounting_provider
+                  ? `Outil : ${business.accounting_provider.charAt(0).toUpperCase() + business.accounting_provider.slice(1)}`
+                  : business?.billing_mode && business.billing_mode !== "pdf"
+                  ? `Facturation : ${business.billing_mode === "peppol" ? "Peppol" : "PDF + Peppol"}`
+                  : "Mode de facturation, outil comptable, Peppol"
+              }
+              href="/profil/comptabilite"
+              border={false}
+            />
           </SectionCard>
         </section>
 

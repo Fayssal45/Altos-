@@ -472,28 +472,28 @@ export default function EstimateForm({
 
       {/* ── HEADER ── */}
       <div className="sticky top-0 z-30 bg-white border-b border-slate-100">
-        <div className="px-4 py-3 flex items-center gap-2">
+        <div className="px-3 py-2 flex items-center gap-1.5">
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
+            className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
           >
             <ArrowLeft className="w-4 h-4 text-slate-600" />
           </button>
 
-          {/* Client pill + titre */}
-          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          {/* Client + titre : flex-1 absorbs space so action buttons never wrap */}
+          <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
             <button
               onClick={() => setShowClientPicker(true)}
-              className="flex items-center gap-1.5 max-w-fit"
+              className="flex items-center gap-1 max-w-fit"
             >
               {selectedClient ? (
-                <span className="text-xs font-bold text-blue-600 bg-blue-50 rounded-lg px-2 py-0.5 truncate max-w-[160px]">
+                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 rounded-md px-1.5 py-0.5 truncate max-w-[130px] block">
                   {selectedClient.full_name}
                 </span>
               ) : (
-                <span className="text-xs font-semibold text-slate-400 bg-slate-100 rounded-lg px-2 py-0.5 flex items-center gap-1">
-                  <User className="w-3 h-3" />
-                  Choisir un client
+                <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 rounded-md px-1.5 py-0.5 flex items-center gap-1">
+                  <User className="w-2.5 h-2.5" />
+                  Client
                 </span>
               )}
             </button>
@@ -501,60 +501,50 @@ export default function EstimateForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Objet du devis…"
-              className="text-sm font-bold text-slate-900 bg-transparent focus:outline-none placeholder:text-slate-400 truncate w-full"
+              className="text-[13px] font-bold text-slate-900 bg-transparent focus:outline-none placeholder:text-slate-400 truncate w-full"
             />
           </div>
 
+          {/* Secondary icon-only actions */}
           {mode === "edit" && estimate && (
             <button
               onClick={handleDuplicate}
               disabled={duplicating}
-              title="Dupliquer ce devis"
-              className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
+              title="Dupliquer"
+              className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"
             >
               {duplicating
-                ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                : <Copy className="w-4 h-4 text-slate-600" />}
+                ? <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                : <Copy className="w-3.5 h-3.5 text-slate-600" />}
             </button>
           )}
           <button
             onClick={() => saveEstimate("draft")}
             disabled={saving}
-            className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
+            className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"
           >
             {saving
-              ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-              : <Save className="w-4 h-4 text-slate-600" />}
+              ? <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              : <Save className="w-3.5 h-3.5 text-slate-600" />}
           </button>
           <button
             onClick={() => setShowPreview(true)}
-            className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
+            className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0"
           >
-            <Eye className="w-4 h-4 text-slate-600" />
+            <Eye className="w-3.5 h-3.5 text-slate-600" />
           </button>
-          <Button
-            size="sm"
-            onClick={() => saveEstimate("sent")}
-            loading={sending}
-            className="flex-shrink-0"
-          >
-            <Send className="w-4 h-4" />
-            Envoyer
-          </Button>
-        </div>
 
-        {/* Completion strip */}
-        <div className="px-4 pb-2.5 flex items-center gap-2">
-          <CompletionPill done={hasClient} label="Client" />
-          <span className="text-slate-200 text-xs">·</span>
-          <CompletionPill done={hasLines} label="Prestations" />
-          <span className="text-slate-200 text-xs">·</span>
-          <CompletionPill done={hasTotal} label="Total" />
-          {hasClient && hasLines && hasTotal && (
-            <span className="ml-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-lg px-2 py-0.5">
-              Prêt à envoyer
-            </span>
-          )}
+          {/* Primary CTA — visually dominant but compact */}
+          <button
+            onClick={() => saveEstimate("sent")}
+            disabled={sending}
+            className="flex items-center gap-1.5 bg-blue-600 active:bg-blue-700 text-white text-[13px] font-bold rounded-xl px-3 h-8 flex-shrink-0 disabled:opacity-60 transition-colors"
+          >
+            {sending
+              ? <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <Send className="w-3.5 h-3.5" />}
+            Envoyer
+          </button>
         </div>
       </div>
 
@@ -759,7 +749,7 @@ export default function EstimateForm({
       </div>
 
       {/* ── STICKY BOTTOM CTA ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-sm border-t border-slate-100 px-4 py-3 pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-slate-100 px-4 py-3 pb-safe">
         <div className="flex gap-3 max-w-lg mx-auto">
           <Button
             size="xl"
@@ -812,20 +802,21 @@ export default function EstimateForm({
               </button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-50 px-4 py-2">
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-50 px-4 py-1">
             {filteredClients.map((client) => (
               <button
                 key={client.id}
                 onClick={() => { setSelectedClient(client); setShowClientPicker(false); setClientSearch(""); }}
-                className="w-full flex items-center gap-3 py-3.5 text-left"
+                className="w-full flex items-center gap-3 py-2.5 text-left"
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-black text-blue-700">{client.full_name[0]}</span>
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-black text-blue-700">{client.full_name[0]}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900">{client.full_name}</p>
-                  {client.company_name && <p className="text-sm text-slate-500">{client.company_name}</p>}
-                  {client.phone && <p className="text-sm text-slate-400">{client.phone}</p>}
+                  <p className="text-sm font-semibold text-slate-900 truncate">{client.full_name}</p>
+                  <p className="text-xs text-slate-400 truncate">
+                    {client.phone || client.company_name || ""}
+                  </p>
                 </div>
               </button>
             ))}

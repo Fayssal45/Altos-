@@ -2,6 +2,35 @@
 // ALTOS – Types TypeScript (mirroring Supabase schema)
 // ============================================================
 
+// ── Accounting / billing ──────────────────────────────────────────────────────
+
+export type BillingMode = "pdf" | "peppol" | "both";
+
+export type AccountingProvider =
+  | "odoo" | "exact" | "yuki" | "accountable" | "billit" | "other";
+
+export type IntegrationStatus = "pending" | "configured" | "active" | "error";
+
+/** One record per provider per business.  Stores pre-config even before
+ *  a real connector is implemented — connected_at stays null until then. */
+export interface BusinessIntegration {
+  id: string;
+  business_id: string;
+  provider: AccountingProvider;
+  status: IntegrationStatus;
+  /** Arbitrary key/value pre-config: instance URL, company code, GLN, …
+   *  Sensitive secrets (API keys, OAuth tokens) must NOT be stored here. */
+  config: Record<string, string>;
+  display_name: string | null;  // used when provider = 'other'
+  notes: string | null;
+  connected_at: string | null;  // null until a real connector sets it
+  last_sync_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type EstimateStatus =
   | "draft"
   | "sent"
@@ -38,6 +67,13 @@ export interface Business {
   payment_terms: string | null;
   vat_regime: "normal" | "micro" | "none";
   stripe_account_id: string | null;
+  // ── Added by accounting_config migration ────────────────────────────────
+  billing_mode: BillingMode;
+  accounting_email: string | null;
+  peppol_address: string | null;
+  peppol_enabled: boolean;
+  accounting_provider: AccountingProvider | null;
+  // ────────────────────────────────────────────────────────────────────────
   created_at: string;
 }
 

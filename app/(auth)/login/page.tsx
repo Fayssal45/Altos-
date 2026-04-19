@@ -150,10 +150,10 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-3">
             <Image
-              src="/logo.png"
+              src="/logo.svg"
               alt="Altos"
-              width={120}
-              height={120}
+              width={88}
+              height={88}
               className="drop-shadow-2xl"
               priority
             />

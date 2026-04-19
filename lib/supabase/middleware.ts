@@ -32,14 +32,15 @@ export async function updateSession(request: NextRequest) {
   const isPublic = publicPrefixes.some((r) => pathname.startsWith(r));
 
   if (!isPublic) {
-    // getSession() reads the JWT from cookie — no Supabase network call.
-    // JWT is cryptographically signed so it cannot be forged.
-    // Individual server components call getUser() when they need verified identity.
+    // getUser() contacts Supabase to validate the access token and refreshes it
+    // if expired (using the refresh token). The setAll handler above writes the
+    // new cookies onto both request and supabaseResponse, so the browser receives
+    // a fresh token and the session stays alive across the 1-hour access token TTL.
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);
