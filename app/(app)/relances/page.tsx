@@ -3,12 +3,12 @@ import RelancesList from "@/components/relances/RelancesList";
 
 export default async function RelancesPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { data: business } = await supabase
     .from("businesses")
     .select("*")
-    .eq("owner_id", user!.id)
+    .eq("owner_id", session!.user.id)
     .single();
 
   // Devis vus mais non signés depuis +48h

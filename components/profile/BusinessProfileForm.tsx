@@ -66,15 +66,22 @@ export default function BusinessProfileForm({ business, userId }: BusinessProfil
     setLogoUploading(true);
     try {
       const filename = `${userId}/logo-${Date.now()}.${file.name.split(".").pop()}`;
-      const { error } = await supabase.storage.from("logos").upload(filename, file, {
+      const { error: uploadError } = await supabase.storage.from("logos").upload(filename, file, {
         contentType: file.type,
         upsert: true,
       });
-      if (error) throw error;
+      if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(filename);
+
+      // Immediately persist the logo_url so it survives without clicking Enregistrer
+      if (business) {
+        await supabase.from("businesses").update({ logo_url: publicUrl }).eq("id", business.id);
+      }
+
       setForm((prev) => ({ ...prev, logo_url: publicUrl }));
-      toast.success("Logo uploadé !");
+      toast.success("Logo enregistré !");
+      router.refresh();
     } catch {
       toast.error("Erreur lors de l'upload du logo");
     } finally {

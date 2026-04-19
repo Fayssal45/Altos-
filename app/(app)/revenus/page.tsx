@@ -3,12 +3,12 @@ import RevenusView from "@/components/revenus/RevenusView";
 
 export default async function RevenusPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { data: business } = await supabase
     .from("businesses")
     .select("id")
-    .eq("owner_id", user!.id)
+    .eq("owner_id", session!.user.id)
     .single();
 
   const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();

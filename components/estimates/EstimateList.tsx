@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { generateEstimatePdf } from "@/lib/generateEstimatePdf";
+import useSWR from "swr";
 
 interface EstimateListProps {
   estimates: Estimate[];
@@ -67,14 +67,35 @@ function buildPeriods(estimates: Estimate[]) {
 }
 
 export default function EstimateList({ estimates: initialEstimates, businessName, business }: EstimateListProps) {
-  const [estimates, setEstimates] = useState<Estimate[]>(initialEstimates);
+  const router = useRouter();
+  const supabase = createClient();
+
+  // SWR: show SSR data instantly, cache between navigations so re-visits are instant
+  const { data: estimates = initialEstimates, mutate: revalidateEstimates } = useSWR<Estimate[]>(
+    business?.id ? `estimates-list:${business.id}` : null,
+    async () => {
+      const { data } = await supabase
+        .from("estimates")
+        .select("*, client:clients(full_name, phone, company_name, address, city, postal_code)")
+        .eq("business_id", business!.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return (data as Estimate[]) ?? [];
+    },
+    {
+      fallbackData: initialEstimates,  // use SSR data on first render
+      revalidateOnMount: true,         // always refresh in background
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
+      keepPreviousData: true,          // show cached data while refreshing
+    }
+  );
+
   const [search, setSearch]       = useState("");
   const [status, setStatus]       = useState("all");
   const [period, setPeriod]       = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [actionEstimate, setActionEstimate] = useState<Estimate | null>(null);
-  const router = useRouter();
-  const supabase = createClient();
 
   const periods = useMemo(() => buildPeriods(estimates), [estimates]);
 
@@ -156,23 +177,26 @@ export default function EstimateList({ estimates: initialEstimates, businessName
 
   const handleMarkPaid = async (e: Estimate) => {
     setActionEstimate(null);
+    const paidAt = new Date().toISOString();
+    // Optimistic update
+    revalidateEstimates((prev) => prev?.map((est) => est.id === e.id ? { ...est, status: "paid" as const, paid_at: paidAt } : est), false);
     const { error } = await supabase
       .from("estimates")
-      .update({ status: "paid", paid_at: new Date().toISOString() })
+      .update({ status: "paid", paid_at: paidAt })
       .eq("id", e.id);
-    if (error) { toast.error("Erreur"); return; }
-    setEstimates((prev) => prev.map((est) => est.id === e.id ? { ...est, status: "paid", paid_at: new Date().toISOString() } : est));
+    if (error) { toast.error("Erreur"); revalidateEstimates(); return; }
     toast.success("Marqué comme payé");
   };
 
   const handleArchive = async (e: Estimate) => {
     setActionEstimate(null);
+    // Optimistic update
+    revalidateEstimates((prev) => prev?.filter((est) => est.id !== e.id), false);
     const { error } = await supabase
       .from("estimates")
       .update({ status: "archived" })
       .eq("id", e.id);
-    if (error) { toast.error("Erreur"); return; }
-    setEstimates((prev) => prev.filter((est) => est.id !== e.id));
+    if (error) { toast.error("Erreur"); revalidateEstimates(); return; }
     toast.success("Archivé");
   };
 
@@ -193,14 +217,15 @@ export default function EstimateList({ estimates: initialEstimates, businessName
     setActionEstimate(null);
     const toastId = toast.loading("Génération du PDF…");
     try {
-      // Fetch items (not included in list query)
       const { data: items } = await supabase
         .from("estimate_items")
         .select("*")
         .eq("estimate_id", e.id)
         .order("sort_order");
       const fullEstimate = { ...e, items: items || [] };
-      const client = e.client as any || null;
+      const client = (e.client as any) || null;
+      // Dynamic import — jsPDF only loads when user actually clicks "Download"
+      const { generateEstimatePdf } = await import("@/lib/generateEstimatePdf");
       await generateEstimatePdf(fullEstimate, business || null, client);
       toast.success("PDF téléchargé", { id: toastId });
     } catch {
@@ -468,6 +493,11 @@ function EstimateCard({ estimate, onAction }: { estimate: Estimate; onAction: ()
             {client && (
               <p className="text-sm text-slate-500 truncate mt-0.5">
                 {client.company_name ? `${client.full_name} · ${client.company_name}` : client.full_name}
+              </p>
+            )}
+            {client && (client.city || client.postal_code || client.address) && (
+              <p className="text-xs text-slate-400 truncate mt-0.5">
+                {[client.postal_code, client.city].filter(Boolean).join(" ") || client.address}
               </p>
             )}
           </div>

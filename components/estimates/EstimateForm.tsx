@@ -7,14 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 import {
-  Plus, Trash2, Send, Save, User, Search, X, ArrowLeft, Tag,
+  Plus, Trash2, Send, Save, User, Search, X, ArrowLeft,
   Eye, Phone, Mail, Building2, Image, Video, Upload,
+  ChevronDown, ChevronUp, CheckCircle2, Circle, Zap,
+  Tag, FileText, Camera, Copy, BookUser,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
+// generateEstimatePdfBlob is dynamically imported on demand (see handleShareSend)
 import type { Business, Client, Estimate, EstimateItem, LibraryItem, EstimateAttachment } from "@/lib/types";
 import { getSuggestionsForActivity, type TradeSuggestion } from "@/lib/trade-suggestions";
-import { Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
-import imageCompression from "browser-image-compression";
+// imageCompression is dynamically imported on demand (see handleFileSelect)
+import { cn } from "@/lib/utils";
 
 const MAX_ATTACHMENTS = 10;
 const MAX_FILE_SIZE_MB = 50;
@@ -38,13 +41,12 @@ interface LineItem {
   sort_order: number;
 }
 
-// Attachment tracked in form state
 interface AttachmentItem {
-  id: string;           // UUID (temp for new, real for persisted)
+  id: string;
   url: string;
   storage_path: string;
   file_type: "photo" | "video";
-  persisted: boolean;   // true = already in DB
+  persisted: boolean;
 }
 
 const UNITS = ["u", "h", "m", "m²", "m³", "forfait", "jour", "semaine"];
@@ -59,6 +61,41 @@ const newLine = (sort_order: number): LineItem => ({
   is_section: false,
   sort_order,
 });
+
+// ─── Collapsible section wrapper ─────────────────────────────────────────────
+function CollapseSection({
+  label, icon, defaultOpen = false, badge, children,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  defaultOpen?: boolean;
+  badge?: string | number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+      >
+        <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 text-slate-500">
+          {icon}
+        </div>
+        <span className="flex-1 text-sm font-bold text-slate-700">{label}</span>
+        {badge !== undefined && badge !== 0 && (
+          <span className="text-xs font-bold bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 mr-1">
+            {badge}
+          </span>
+        )}
+        {open
+          ? <ChevronUp className="w-4 h-4 text-slate-400" />
+          : <ChevronDown className="w-4 h-4 text-slate-400" />}
+      </button>
+      {open && <div className="border-t border-slate-50">{children}</div>}
+    </section>
+  );
+}
 
 export default function EstimateForm({
   business, clients, mode, estimate, existingAttachments = [],
@@ -85,7 +122,7 @@ export default function EstimateForm({
 
   // Lignes
   const [lines, setLines] = useState<LineItem[]>(
-    estimate?.items?.map((item) => ({ ...item, id: item.id })) || [newLine(0)]
+    estimate?.items?.map((item: EstimateItem) => ({ ...item, id: item.id })) || [newLine(0)]
   );
 
   // Pièces jointes
@@ -101,17 +138,22 @@ export default function EstimateForm({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Suggestions autocomplétion
+  // Autocomplétion
   const [suggestions, setSuggestions] = useState<LibraryItem[]>([]);
   const [activeSuggestionLine, setActiveSuggestionLine] = useState<string | null>(null);
   const suggestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Calculs
-  const totalHT = lines
-    .filter((l) => !l.is_section)
-    .reduce((sum, l) => sum + l.quantity * l.unit_price * (1 - l.discount / 100), 0);
+  const realLines = lines.filter((l) => !l.is_section);
+  const totalHT = realLines.reduce(
+    (sum, l) => sum + l.quantity * l.unit_price * (1 - l.discount / 100), 0
+  );
   const vatAmount = totalHT * (vatRate / 100);
   const totalTTC = totalHT + vatAmount;
+
+  const hasClient = !!selectedClient;
+  const hasLines = realLines.some((l) => l.description && l.unit_price > 0);
+  const hasTotal = totalTTC > 0;
 
   // Autocomplétion catalogue
   const fetchSuggestions = useCallback(async (query: string) => {
@@ -147,7 +189,39 @@ export default function EstimateForm({
   };
 
   const addLine = (isSection = false) => {
-    setLines((prev) => [...prev, { ...newLine(prev.length), is_section: isSection }]);
+    const id = crypto.randomUUID();
+    setLines((prev) => [
+      ...prev,
+      { ...newLine(prev.length), id, is_section: isSection },
+    ]);
+    // Focus newly added line on next tick
+    setTimeout(() => {
+      const el = document.getElementById(`line-desc-${id}`);
+      el?.focus();
+    }, 50);
+  };
+
+  const addFromSuggestion = (s: TradeSuggestion) => {
+    const id = crypto.randomUUID();
+    setLines((prev) => [
+      ...prev,
+      {
+        id,
+        description: s.description,
+        quantity: 1,
+        unit: s.unit,
+        unit_price: 0,
+        discount: 0,
+        is_section: false,
+        sort_order: prev.length,
+      },
+    ]);
+    // Focus price field for the new line
+    setTimeout(() => {
+      const el = document.getElementById(`line-price-${id}`);
+      el?.focus();
+      (el as HTMLInputElement | null)?.select();
+    }, 50);
   };
 
   const removeLine = (id: string) => {
@@ -177,113 +251,58 @@ export default function EstimateForm({
     }
   };
 
-  // ── Upload pièces jointes ─────────────────────────────────────────────────
+  // Upload pièces jointes
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length || !business?.id) return;
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     const remaining = MAX_ATTACHMENTS - attachments.length;
-    if (remaining <= 0) {
-      toast.error(`Maximum ${MAX_ATTACHMENTS} fichiers atteint`);
-      return;
-    }
-
+    if (remaining <= 0) { toast.error(`Maximum ${MAX_ATTACHMENTS} fichiers atteint`); return; }
     const toUpload = files.slice(0, remaining);
-    if (files.length > remaining) {
-      toast(`Seuls ${remaining} fichier(s) ajouté(s) sur ${files.length} sélectionné(s)`);
-    }
-
+    if (files.length > remaining) toast(`Seuls ${remaining} fichier(s) ajouté(s)`);
     setUploading(true);
     const uploaded: AttachmentItem[] = [];
-
     for (const file of toUpload) {
-      // Vérification taille
-      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        toast.error(`${file.name} dépasse ${MAX_FILE_SIZE_MB} Mo`);
-        continue;
-      }
-
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) { toast.error(`${file.name} dépasse ${MAX_FILE_SIZE_MB} Mo`); continue; }
       const isVideo = file.type.startsWith("video/");
       const ext = file.name.split(".").pop()?.toLowerCase() || (isVideo ? "mp4" : "jpg");
       const filename = `${user.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-
       try {
         let fileToUpload: File | Blob = file;
-
-        // Compression photo uniquement
         if (!isVideo && file.type.startsWith("image/")) {
-          fileToUpload = await imageCompression(file, {
-            maxSizeMB: 2,
-            maxWidthOrHeight: 1920,
-            useWebWorker: true,
-          });
+          const imageCompression = (await import("browser-image-compression")).default;
+          fileToUpload = await imageCompression(file, { maxSizeMB: 2, maxWidthOrHeight: 1920, useWebWorker: true });
         }
-
-        const { error } = await supabase.storage
-          .from("estimate-attachments")
-          .upload(filename, fileToUpload, { contentType: file.type, upsert: false });
-
+        const { error } = await supabase.storage.from("estimate-attachments").upload(filename, fileToUpload, { contentType: file.type, upsert: false });
         if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("estimate-attachments")
-          .getPublicUrl(filename);
-
-        uploaded.push({
-          id: crypto.randomUUID(),
-          url: publicUrl,
-          storage_path: filename,
-          file_type: isVideo ? "video" : "photo",
-          persisted: false,
-        });
+        const { data: { publicUrl } } = supabase.storage.from("estimate-attachments").getPublicUrl(filename);
+        uploaded.push({ id: crypto.randomUUID(), url: publicUrl, storage_path: filename, file_type: isVideo ? "video" : "photo", persisted: false });
       } catch (err: unknown) {
         const msg = (err as { message?: string })?.message || String(err);
-        console.error("[upload]", file.name, msg);
         toast.error(`Upload échoué : ${msg}`);
       }
     }
-
     setAttachments((prev) => [...prev, ...uploaded]);
     setUploading(false);
-
-    // Reset input pour permettre re-sélection du même fichier
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeAttachment = async (item: AttachmentItem) => {
-    // Supprimer du storage
     await supabase.storage.from("estimate-attachments").remove([item.storage_path]);
-
-    // Supprimer de la DB si persisté
-    if (item.persisted) {
-      await supabase.from("estimate_attachments").delete().eq("id", item.id);
-    }
-
+    if (item.persisted) await supabase.from("estimate_attachments").delete().eq("id", item.id);
     setAttachments((prev) => prev.filter((a) => a.id !== item.id));
   };
 
-  // ── Sauvegarde ────────────────────────────────────────────────────────────
+  // Sauvegarde
   const saveEstimate = async (status: "draft" | "sent" = "draft") => {
-    if (!business?.id) {
-      toast.error("Configurez d'abord votre entreprise");
-      return;
-    }
-
+    if (!business?.id) { toast.error("Configurez d'abord votre entreprise"); return; }
     const isSending = status === "sent";
-    if (isSending) setSending(true);
-    else setSaving(true);
-
+    if (isSending) setSending(true); else setSaving(true);
     try {
       let estimateId = estimate?.id;
-
       if (mode === "create") {
-        const { data: numData } = await supabase.rpc("generate_estimate_number", {
-          p_business_id: business.id,
-        });
-
+        const { data: numData } = await supabase.rpc("generate_estimate_number", { p_business_id: business.id });
         const { data: newEstimate, error } = await supabase
           .from("estimates")
           .insert({
@@ -300,28 +319,21 @@ export default function EstimateForm({
           })
           .select()
           .single();
-
         if (error) throw error;
         estimateId = newEstimate.id;
       } else if (estimateId) {
-        const { error } = await supabase
-          .from("estimates")
-          .update({
-            client_id: selectedClient?.id || null,
-            status,
-            title,
-            vat_rate: vatRate,
-            client_notes: clientNotes,
-            validity_days: validityDays,
-          })
-          .eq("id", estimateId);
+        const { error } = await supabase.from("estimates").update({
+          client_id: selectedClient?.id || null,
+          status,
+          title,
+          vat_rate: vatRate,
+          client_notes: clientNotes,
+          validity_days: validityDays,
+        }).eq("id", estimateId);
         if (error) throw error;
-
         await supabase.from("estimate_items").delete().eq("estimate_id", estimateId);
       }
-
       if (estimateId) {
-        // Lignes
         const items = lines.map((line, i) => ({
           estimate_id: estimateId,
           description: line.description,
@@ -334,27 +346,20 @@ export default function EstimateForm({
         }));
         const { error: itemsError } = await supabase.from("estimate_items").insert(items);
         if (itemsError) throw itemsError;
-
         await Promise.all(lines.map(saveToLibrary));
-
-        // Pièces jointes non encore persistées
         const newAttachments = attachments.filter((a) => !a.persisted);
         if (newAttachments.length > 0) {
-          const attachmentRows = newAttachments.map((a, i) => ({
+          const rows = newAttachments.map((a, i) => ({
             estimate_id: estimateId,
             url: a.url,
             storage_path: a.storage_path,
             file_type: a.file_type,
             sort_order: attachments.filter((x) => x.persisted).length + i,
           }));
-          await supabase.from("estimate_attachments").insert(attachmentRows);
-          // Marquer comme persistées en local
-          setAttachments((prev) =>
-            prev.map((a) => (a.persisted ? a : { ...a, persisted: true }))
-          );
+          await supabase.from("estimate_attachments").insert(rows);
+          setAttachments((prev) => prev.map((a) => a.persisted ? a : { ...a, persisted: true }));
         }
       }
-
       if (isSending) {
         toast.success("Devis prêt à envoyer !");
         router.push(`/devis/${estimateId}/envoyer`);
@@ -377,119 +382,240 @@ export default function EstimateForm({
     c.phone?.includes(clientSearch)
   );
 
+  const tradeSuggestions = getSuggestionsForActivity(business?.activity);
+
+  // Duplicate current estimate (only available in edit mode)
+  const [duplicating, setDuplicating] = useState(false);
+  const handleDuplicate = async () => {
+    if (!estimate || !business?.id) return;
+    setDuplicating(true);
+    try {
+      const { data: numData } = await supabase.rpc("generate_estimate_number", { p_business_id: business.id });
+      const { data: newEst, error } = await supabase
+        .from("estimates")
+        .insert({
+          business_id: business.id,
+          client_id: selectedClient?.id || null,
+          number: numData,
+          status: "draft",
+          title: `${title || "Devis"} (copie)`,
+          vat_rate: vatRate,
+          client_notes: clientNotes,
+          validity_days: validityDays,
+          issued_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + validityDays * 86400000).toISOString(),
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      const items = lines.map((line, i) => ({
+        estimate_id: newEst.id,
+        description: line.description,
+        quantity: line.quantity,
+        unit: line.unit,
+        unit_price: line.unit_price,
+        discount: line.discount,
+        sort_order: i,
+        is_section: line.is_section,
+      }));
+      await supabase.from("estimate_items").insert(items);
+      toast.success("Devis dupliqué !");
+      router.push(`/devis/${newEst.id}/edit`);
+    } catch {
+      toast.error("Erreur lors de la duplication");
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
+  // Import contact from phone (Contact Picker API)
+  const importContact = async () => {
+    // @ts-ignore – Contact Picker API not in all TS lib versions
+    if (!("contacts" in navigator) || !navigator.contacts?.select) {
+      toast("Cette fonctionnalité n'est pas disponible sur ce navigateur", { icon: "ℹ️" });
+      return;
+    }
+    try {
+      // @ts-ignore
+      const results = await navigator.contacts.select(["name", "tel", "email", "address"], { multiple: false });
+      if (!results?.length) return;
+      const contact = results[0];
+      const fullName = contact.name?.[0] || "";
+      const phone = contact.tel?.[0] || "";
+      const email = contact.email?.[0] || "";
+      const address = contact.address?.[0]?.addressLine?.[0] || "";
+      const city = contact.address?.[0]?.city || "";
+      const postalCode = contact.address?.[0]?.postalCode || "";
+      if (!fullName) { toast.error("Nom introuvable dans le contact"); return; }
+      // Create client in Supabase
+      if (!business?.id) { toast.error("Configurez d'abord votre entreprise"); return; }
+      const { data: newClient, error } = await supabase
+        .from("clients")
+        .insert({ business_id: business.id, full_name: fullName, phone: phone || null, email: email || null, address: address || null, city: city || null, postal_code: postalCode || null })
+        .select()
+        .single();
+      if (error) throw error;
+      setSelectedClient(newClient as Client);
+      setShowClientPicker(false);
+      toast.success(`${fullName} importé depuis vos contacts`);
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || "";
+      if (!msg.includes("cancelled") && !msg.includes("abort")) {
+        toast.error("Impossible d'accéder aux contacts");
+      }
+    }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-3">
-        <div className="flex items-center gap-2">
+
+      {/* ── HEADER ── */}
+      <div className="sticky top-0 z-30 bg-white border-b border-slate-100">
+        <div className="px-4 py-3 flex items-center gap-2">
           <button
             onClick={() => router.back()}
             className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
           >
             <ArrowLeft className="w-4 h-4 text-slate-600" />
           </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-black text-slate-900 truncate">
-              {mode === "create" ? "Nouveau Devis" : `Modifier ${estimate?.number || ""}`}
-            </h1>
+
+          {/* Client pill + titre */}
+          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+            <button
+              onClick={() => setShowClientPicker(true)}
+              className="flex items-center gap-1.5 max-w-fit"
+            >
+              {selectedClient ? (
+                <span className="text-xs font-bold text-blue-600 bg-blue-50 rounded-lg px-2 py-0.5 truncate max-w-[160px]">
+                  {selectedClient.full_name}
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-slate-400 bg-slate-100 rounded-lg px-2 py-0.5 flex items-center gap-1">
+                  <User className="w-3 h-3" />
+                  Choisir un client
+                </span>
+              )}
+            </button>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Objet du devis…"
+              className="text-sm font-bold text-slate-900 bg-transparent focus:outline-none placeholder:text-slate-400 truncate w-full"
+            />
           </div>
-          <Button size="sm" variant="outline" onClick={() => saveEstimate("draft")} loading={saving}>
-            <Save className="w-4 h-4" />
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowPreview(true)}>
-            <Eye className="w-4 h-4" />
-          </Button>
-          <Button size="sm" onClick={() => saveEstimate("sent")} loading={sending}>
+
+          {mode === "edit" && estimate && (
+            <button
+              onClick={handleDuplicate}
+              disabled={duplicating}
+              title="Dupliquer ce devis"
+              className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
+            >
+              {duplicating
+                ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                : <Copy className="w-4 h-4 text-slate-600" />}
+            </button>
+          )}
+          <button
+            onClick={() => saveEstimate("draft")}
+            disabled={saving}
+            className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
+          >
+            {saving
+              ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              : <Save className="w-4 h-4 text-slate-600" />}
+          </button>
+          <button
+            onClick={() => setShowPreview(true)}
+            className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
+          >
+            <Eye className="w-4 h-4 text-slate-600" />
+          </button>
+          <Button
+            size="sm"
+            onClick={() => saveEstimate("sent")}
+            loading={sending}
+            className="flex-shrink-0"
+          >
             <Send className="w-4 h-4" />
             Envoyer
           </Button>
         </div>
+
+        {/* Completion strip */}
+        <div className="px-4 pb-2.5 flex items-center gap-2">
+          <CompletionPill done={hasClient} label="Client" />
+          <span className="text-slate-200 text-xs">·</span>
+          <CompletionPill done={hasLines} label="Prestations" />
+          <span className="text-slate-200 text-xs">·</span>
+          <CompletionPill done={hasTotal} label="Total" />
+          {hasClient && hasLines && hasTotal && (
+            <span className="ml-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-lg px-2 py-0.5">
+              Prêt à envoyer
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-4 flex flex-col gap-4">
+      {/* ── SCROLL AREA ── */}
+      <div className="flex-1 overflow-y-auto pb-28">
+        <div className="px-4 py-4 flex flex-col gap-3">
 
-          {/* Client */}
-          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-50">
-              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Client</h2>
+          {/* ── CLIENT (si pas encore sélectionné) ── */}
+          {!selectedClient && (
+            <button
+              onClick={() => setShowClientPicker(true)}
+              className="w-full flex items-center gap-3 bg-white border-2 border-dashed border-blue-200 rounded-2xl px-4 py-4 text-left"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <User className="w-5 h-5 text-blue-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900">Ajouter un client</p>
+                <p className="text-xs text-slate-400">Optionnel · vous pouvez ajouter plus tard</p>
+              </div>
+              <Plus className="w-5 h-5 text-blue-400 flex-shrink-0" />
+            </button>
+          )}
+
+          {/* ── AJOUT RAPIDE ── */}
+          {tradeSuggestions.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+                <Zap className="w-3 h-3" />
+                Ajout rapide
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {tradeSuggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => addFromSuggestion(s)}
+                    className="flex-shrink-0 flex items-center gap-1.5 bg-white border border-slate-200 rounded-2xl px-3.5 py-2.5 text-sm font-semibold text-slate-700 active:scale-95 transition-transform shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                    {s.title}
+                  </button>
+                ))}
+              </div>
             </div>
-            {selectedClient ? (
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <User className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900">{selectedClient.full_name}</p>
-                  {selectedClient.company_name && (
-                    <p className="text-sm text-slate-500">{selectedClient.company_name}</p>
-                  )}
-                  {selectedClient.phone && (
-                    <p className="text-sm text-slate-400">{selectedClient.phone}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => setSelectedClient(null)}
-                  className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center"
-                >
-                  <X className="w-4 h-4 text-slate-500" />
-                </button>
-              </div>
-            ) : (
-              <div className="p-4">
-                <button
-                  onClick={() => setShowClientPicker(true)}
-                  className="w-full flex items-center gap-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-4 text-slate-500 active:scale-98 transition-transform"
-                >
-                  <User className="w-5 h-5" />
-                  <span className="font-medium">Choisir un client</span>
-                </button>
-                <button
-                  onClick={() => router.push("/clients/nouveau?return=devis")}
-                  className="w-full mt-2 text-sm text-blue-600 font-semibold py-2 text-center"
-                >
-                  + Nouveau client
-                </button>
-              </div>
-            )}
-          </section>
+          )}
 
-          {/* Titre chantier */}
-          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <Input
-              label="Titre de l'intervention"
-              placeholder="Ex: Installation électrique appartement T3"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </section>
-
-          {/* Suggestions */}
-          <SuggestionsPanel
-            activity={business?.activity}
-            onApply={(suggestion) => {
-              setTitle((prev) => prev || suggestion.title);
-              addLine(false);
-              setLines((prev) => {
-                const last = prev[prev.length - 1];
-                return prev.map((l) =>
-                  l.id === last.id
-                    ? { ...l, description: suggestion.description, unit: suggestion.unit }
-                    : l
-                );
-              });
-            }}
-          />
-
-          {/* Lignes de devis */}
+          {/* ── PRESTATIONS ── */}
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Prestations</h2>
+              <h2 className="text-sm font-black text-slate-900">
+                Prestations
+                {realLines.length > 0 && (
+                  <span className="ml-2 text-xs font-bold text-slate-400">({realLines.length})</span>
+                )}
+              </h2>
               <button
                 onClick={() => addLine(true)}
-                className="text-xs text-slate-500 font-semibold px-2 py-1 rounded-lg bg-slate-50 border border-slate-200"
+                className="text-xs text-slate-500 font-semibold px-2.5 py-1.5 rounded-xl bg-slate-100 flex items-center gap-1"
               >
-                + Titre
+                <Tag className="w-3 h-3" />
+                Section
               </button>
             </div>
 
@@ -504,10 +630,7 @@ export default function EstimateForm({
                   onDescriptionChange={handleLineDescriptionChange}
                   suggestions={activeSuggestionLine === line.id ? suggestions : []}
                   onSuggestionApply={(item) => applySuggestion(line.id, item)}
-                  onSuggestionDismiss={() => {
-                    setSuggestions([]);
-                    setActiveSuggestionLine(null);
-                  }}
+                  onSuggestionDismiss={() => { setSuggestions([]); setActiveSuggestionLine(null); }}
                   canRemove={lines.length > 1}
                 />
               ))}
@@ -516,81 +639,113 @@ export default function EstimateForm({
             <div className="px-4 py-3 border-t border-slate-50">
               <button
                 onClick={() => addLine(false)}
-                className="flex items-center gap-2 text-blue-600 font-semibold text-sm py-2"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-50 text-blue-600 font-bold text-sm active:bg-blue-100 transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                Ajouter une prestation
+                Ajouter une ligne
               </button>
             </div>
           </section>
 
-          {/* Totaux */}
-          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm">
-            <div className="px-4 py-3 space-y-2.5">
+          {/* ── RÉCAPITULATIF ── */}
+          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-4 pt-4 pb-3 space-y-2.5">
+
               <SectionTotals lines={lines} />
-              <div className="flex justify-between text-sm pt-1">
-                <span className="text-slate-500">Total HT</span>
+
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 font-medium">Total HT</span>
                 <span className="font-bold text-slate-900 tabular-nums">{formatCurrency(totalHT)}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
+
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-slate-500">TVA</span>
+                  <span className="text-sm text-slate-500 font-medium">TVA</span>
                   <select
                     value={vatRate}
                     onChange={(e) => setVatRate(Number(e.target.value))}
-                    className="text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1"
+                    className="text-sm font-bold text-slate-700 bg-slate-100 rounded-xl px-2.5 py-1.5 focus:outline-none appearance-none cursor-pointer"
                   >
-                    <option value={0}>0% (franchise)</option>
-                    <option value={5.5}>5,5%</option>
-                    <option value={10}>10%</option>
-                    <option value={20}>20%</option>
+                    <option value={0}>0% (franchise TVA)</option>
+                    <option value={6}>6%</option>
+                    <option value={12}>12%</option>
+                    <option value={21}>21%</option>
                   </select>
                 </div>
-                <span className="font-bold text-slate-900 tabular-nums">{formatCurrency(vatAmount)}</span>
+                <span className="text-sm font-bold text-slate-900 tabular-nums">{formatCurrency(vatAmount)}</span>
               </div>
+
               {vatRate === 0 && (
-                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
                   TVA non applicable – art. 56bis du Code TVA belge
                 </p>
               )}
-              <div className="flex justify-between border-t border-slate-100 pt-2.5">
-                <span className="font-black text-slate-900">Total TTC</span>
-                <span className="text-2xl font-black text-blue-600 tabular-nums">{formatCurrency(totalTTC)}</span>
+            </div>
+
+            {/* Big total */}
+            <div className="mx-3 mb-3 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl px-4 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-blue-200 text-xs font-semibold">TOTAL TTC</p>
+                <p className="text-3xl font-black text-white tabular-nums">{formatCurrency(totalTTC)}</p>
               </div>
+              {hasClient && hasLines && hasTotal ? (
+                <div className="flex items-center gap-1.5 bg-white/20 rounded-xl px-3 py-2">
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span className="text-white text-xs font-bold">Prêt</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-3 py-2">
+                  <Circle className="w-4 h-4 text-blue-300" />
+                  <span className="text-blue-300 text-xs font-semibold">En cours</span>
+                </div>
+              )}
             </div>
           </section>
 
-          {/* Photos & Vidéos */}
-          <AttachmentSection
-            attachments={attachments}
-            uploading={uploading}
-            fileInputRef={fileInputRef}
-            onFileSelect={handleFileSelect}
-            onRemove={removeAttachment}
-          />
+          {/* ── SECTIONS SECONDAIRES COLLAPSÉES ── */}
 
-          {/* Notes client */}
-          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <label className="text-sm font-medium text-slate-700 block mb-1.5">
-              Notes pour le client <span className="text-slate-400 font-normal">(optionnel)</span>
-            </label>
-            <textarea
-              value={clientNotes}
-              onChange={(e) => setClientNotes(e.target.value)}
-              placeholder="Conditions de règlement, délai d'intervention..."
-              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base text-slate-900 focus:outline-none focus:border-blue-500 resize-none"
-              rows={3}
+          {/* Photos & vidéos */}
+          <CollapseSection
+            label="Photos & Vidéos"
+            icon={<Camera className="w-4 h-4" />}
+            badge={attachments.length || undefined}
+          >
+            <AttachmentSection
+              attachments={attachments}
+              uploading={uploading}
+              fileInputRef={fileInputRef}
+              onFileSelect={handleFileSelect}
+              onRemove={removeAttachment}
             />
-          </section>
+          </CollapseSection>
+
+          {/* Notes & conditions */}
+          <CollapseSection
+            label="Notes & conditions client"
+            icon={<FileText className="w-4 h-4" />}
+          >
+            <div className="px-4 py-3">
+              <textarea
+                value={clientNotes}
+                onChange={(e) => setClientNotes(e.target.value)}
+                placeholder="Conditions de règlement, délai d'intervention, garanties…"
+                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:border-blue-500 resize-none"
+                rows={4}
+              />
+            </div>
+          </CollapseSection>
 
           {/* Validité */}
-          <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <div className="flex items-center justify-between">
+          <CollapseSection
+            label={`Validité · ${validityDays} jours`}
+            icon={<Eye className="w-4 h-4" />}
+          >
+            <div className="px-4 py-3 flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">Validité du devis</span>
               <select
                 value={validityDays}
                 onChange={(e) => setValidityDays(Number(e.target.value))}
-                className="text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2"
+                className="text-sm font-bold text-slate-700 bg-slate-100 rounded-xl px-3 py-2 focus:outline-none"
               >
                 <option value={15}>15 jours</option>
                 <option value={30}>30 jours</option>
@@ -598,25 +753,36 @@ export default function EstimateForm({
                 <option value={90}>90 jours</option>
               </select>
             </div>
-          </section>
+          </CollapseSection>
 
-          {/* CTA */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button size="xl" variant="outline" onClick={() => setShowPreview(true)} className="w-full">
-              <Eye className="w-5 h-5" />
-              Aperçu
-            </Button>
-            <Button size="xl" onClick={() => saveEstimate("sent")} loading={sending} className="w-full">
-              <Send className="w-5 h-5" />
-              Envoyer
-            </Button>
-          </div>
-
-          <div className="h-6" />
         </div>
       </div>
 
-      {/* Client Picker */}
+      {/* ── STICKY BOTTOM CTA ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-sm border-t border-slate-100 px-4 py-3 pb-safe">
+        <div className="flex gap-3 max-w-lg mx-auto">
+          <Button
+            size="xl"
+            variant="outline"
+            onClick={() => setShowPreview(true)}
+            className="flex-1"
+          >
+            <Eye className="w-5 h-5" />
+            Aperçu
+          </Button>
+          <Button
+            size="xl"
+            onClick={() => saveEstimate("sent")}
+            loading={sending}
+            className="flex-[2]"
+          >
+            <Send className="w-5 h-5" />
+            Envoyer le devis
+          </Button>
+        </div>
+      </div>
+
+      {/* ── CLIENT PICKER ── */}
       {showClientPicker && (
         <div className="fixed inset-0 z-50 flex flex-col bg-white animate-slide-up">
           <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3">
@@ -631,27 +797,30 @@ export default function EstimateForm({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   autoFocus
-                  placeholder="Rechercher un client..."
+                  placeholder="Rechercher un client…"
                   value={clientSearch}
                   onChange={(e) => setClientSearch(e.target.value)}
                   className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-base focus:outline-none focus:border-blue-500"
                 />
               </div>
+              <button
+                onClick={importContact}
+                title="Importer depuis les contacts"
+                className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0"
+              >
+                <BookUser className="w-4 h-4 text-emerald-700" />
+              </button>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-slate-50 px-4 py-2">
             {filteredClients.map((client) => (
               <button
                 key={client.id}
-                onClick={() => {
-                  setSelectedClient(client);
-                  setShowClientPicker(false);
-                  setClientSearch("");
-                }}
+                onClick={() => { setSelectedClient(client); setShowClientPicker(false); setClientSearch(""); }}
                 className="w-full flex items-center gap-3 py-3.5 text-left"
               >
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-slate-600">{client.full_name[0]}</span>
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-black text-blue-700">{client.full_name[0]}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-900">{client.full_name}</p>
@@ -667,7 +836,7 @@ export default function EstimateForm({
                   onClick={() => { setShowClientPicker(false); router.push("/clients/nouveau?return=devis"); }}
                   className="mt-3 text-blue-600 font-semibold text-sm"
                 >
-                  + Créer "{clientSearch}"
+                  + Créer « {clientSearch} »
                 </button>
               </div>
             )}
@@ -675,7 +844,7 @@ export default function EstimateForm({
         </div>
       )}
 
-      {/* Aperçu */}
+      {/* ── APERÇU ── */}
       {showPreview && (
         <EstimatePreview
           business={business}
@@ -699,136 +868,22 @@ export default function EstimateForm({
   );
 }
 
-// ─── Section pièces jointes ───────────────────────────────────────────────────
-function AttachmentSection({
-  attachments, uploading, fileInputRef, onFileSelect, onRemove,
-}: {
-  attachments: AttachmentItem[];
-  uploading: boolean;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemove: (item: AttachmentItem) => void;
-}) {
-  const count = attachments.length;
-  const canAdd = count < MAX_ATTACHMENTS;
-  const photos = attachments.filter((a) => a.file_type === "photo").length;
-  const videos = attachments.filter((a) => a.file_type === "video").length;
-
+// ─── Completion pill ──────────────────────────────────────────────────────────
+function CompletionPill({ done, label }: { done: boolean; label: string }) {
   return (
-    <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Photos & Vidéos</h2>
-          {count > 0 && (
-            <p className="text-xs text-slate-400 mt-0.5">
-              {photos > 0 && `${photos} photo${photos > 1 ? "s" : ""}`}
-              {photos > 0 && videos > 0 && " · "}
-              {videos > 0 && `${videos} vidéo${videos > 1 ? "s" : ""}`}
-            </p>
-          )}
-        </div>
-        <span className={`text-xs font-bold px-2 py-1 rounded-lg ${count >= MAX_ATTACHMENTS ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500"}`}>
-          {count}/{MAX_ATTACHMENTS}
-        </span>
-      </div>
-
-      <div className="p-4">
-        {/* Grille de miniatures */}
-        {count > 0 && (
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {attachments.map((item) => (
-              <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 group">
-                {item.file_type === "video" ? (
-                  <video
-                    src={item.url}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                    preload="metadata"
-                  />
-                ) : (
-                  <img
-                    src={item.url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                )}
-
-                {/* Badge type */}
-                <div className="absolute bottom-1 left-1">
-                  {item.file_type === "video" ? (
-                    <div className="bg-black/60 rounded-md px-1.5 py-0.5 flex items-center gap-1">
-                      <Video className="w-2.5 h-2.5 text-white" />
-                      <span className="text-[10px] text-white font-medium">Vidéo</span>
-                    </div>
-                  ) : (
-                    <div className="bg-black/60 rounded-md px-1.5 py-0.5 flex items-center gap-1">
-                      <Image className="w-2.5 h-2.5 text-white" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Bouton supprimer */}
-                <button
-                  onClick={() => onRemove(item)}
-                  className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center shadow-sm"
-                >
-                  <X className="w-3 h-3 text-white" />
-                </button>
-
-                {/* Indicateur non sauvegardé */}
-                {!item.persisted && (
-                  <div className="absolute top-1 left-1 w-2 h-2 bg-amber-400 rounded-full" title="Non sauvegardé" />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Bouton ajouter */}
-        {canAdd ? (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              onChange={onFileSelect}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl py-3.5 text-slate-500 font-semibold text-sm active:scale-98 transition-transform disabled:opacity-50"
-            >
-              {uploading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                  Upload en cours…
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" />
-                  Ajouter {count > 0 ? "d'autres " : ""}photos ou vidéos
-                </>
-              )}
-            </button>
-            <p className="text-xs text-slate-400 text-center mt-2">
-              JPG, PNG, GIF, MP4, MOV · {MAX_FILE_SIZE_MB} Mo max · {MAX_ATTACHMENTS - count} emplacement{MAX_ATTACHMENTS - count > 1 ? "s" : ""} restant{MAX_ATTACHMENTS - count > 1 ? "s" : ""}
-            </p>
-          </>
-        ) : (
-          <p className="text-center text-sm text-slate-400 py-2">
-            Limite de {MAX_ATTACHMENTS} fichiers atteinte
-          </p>
-        )}
-      </div>
-    </section>
+    <span className={cn(
+      "flex items-center gap-1 text-[10px] font-bold rounded-lg px-2 py-0.5",
+      done ? "text-emerald-700 bg-emerald-50" : "text-slate-400 bg-slate-100"
+    )}>
+      {done
+        ? <CheckCircle2 className="w-3 h-3" />
+        : <Circle className="w-3 h-3" />}
+      {label}
+    </span>
   );
 }
 
-// ─── Ligne de devis ───────────────────────────────────────────────────────────
+// ─── Line row ─────────────────────────────────────────────────────────────────
 function LineRow({
   line, index, onUpdate, onRemove, onDescriptionChange,
   suggestions, onSuggestionApply, canRemove,
@@ -845,6 +900,7 @@ function LineRow({
 }) {
   const lineTotal = line.quantity * line.unit_price * (1 - line.discount / 100);
   const hasDiscount = line.discount > 0;
+  const [expanded, setExpanded] = useState(false);
 
   if (line.is_section) {
     return (
@@ -853,10 +909,10 @@ function LineRow({
         <input
           value={line.description}
           onChange={(e) => onDescriptionChange(line.id, e.target.value)}
-          placeholder="Titre de section..."
-          className="flex-1 bg-transparent text-sm font-bold text-slate-700 focus:outline-none placeholder:text-slate-400"
+          placeholder="Titre de section…"
+          className="flex-1 bg-transparent text-sm font-black text-slate-700 focus:outline-none placeholder:text-slate-400 uppercase tracking-wide"
         />
-        <button onClick={() => onRemove(line.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400">
+        <button onClick={() => onRemove(line.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300">
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
@@ -865,28 +921,31 @@ function LineRow({
 
   return (
     <div className="px-4 py-3 relative">
-      <div className="relative mb-2.5">
+      {/* Row 1: description */}
+      <div className="relative mb-2">
         <input
+          id={`line-desc-${line.id}`}
           value={line.description}
           onChange={(e) => onDescriptionChange(line.id, e.target.value)}
-          placeholder={`Prestation ${index + 1}...`}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:border-blue-500 pr-8"
+          placeholder={`Prestation ${index + 1}…`}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-900 focus:outline-none focus:border-blue-500 pr-8"
         />
         {canRemove && (
           <button
             onClick={() => onRemove(line.id)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-300"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-300 active:text-red-400"
           >
             <Trash2 className="w-4 h-4" />
           </button>
         )}
+        {/* Autocomplete dropdown */}
         {suggestions.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden">
             {suggestions.map((item) => (
               <button
                 key={item.id}
                 onClick={() => onSuggestionApply(item)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-blue-50 border-b border-slate-50 last:border-0"
+                className="w-full flex items-center justify-between px-4 py-3 text-left active:bg-blue-50 border-b border-slate-50 last:border-0"
               >
                 <span className="text-sm font-medium text-slate-800">{item.description}</span>
                 <span className="text-sm font-bold text-blue-600 tabular-nums">{formatCurrency(item.unit_price)}/{item.unit}</span>
@@ -896,47 +955,72 @@ function LineRow({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mb-2">
-        <div>
-          <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-1">Quantité</label>
+      {/* Row 2: qty × price = total + toggle details */}
+      <div className="flex items-center gap-2">
+        {/* Qty */}
+        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+          <button
+            onClick={() => onUpdate(line.id, "quantity", Math.max(0, line.quantity - 1))}
+            className="px-2.5 py-2 text-slate-500 font-bold text-sm active:bg-slate-100"
+          >−</button>
           <input
             type="number"
             value={line.quantity}
             onChange={(e) => onUpdate(line.id, "quantity", parseFloat(e.target.value) || 0)}
             min="0"
             step="0.5"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base font-semibold text-slate-900 focus:outline-none focus:border-blue-500 text-center"
+            className="w-10 bg-transparent text-sm font-bold text-slate-900 focus:outline-none text-center"
           />
+          <button
+            onClick={() => onUpdate(line.id, "quantity", line.quantity + 1)}
+            className="px-2.5 py-2 text-slate-500 font-bold text-sm active:bg-slate-100"
+          >+</button>
         </div>
-        <div>
-          <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-1">Unité</label>
-          <select
-            value={line.unit}
-            onChange={(e) => onUpdate(line.id, "unit", e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-base font-semibold text-slate-900 focus:outline-none focus:border-blue-500 text-center appearance-none"
-          >
-            {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-          </select>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-1">Prix unitaire (€)</label>
+        {/* Unit */}
+        <select
+          value={line.unit}
+          onChange={(e) => onUpdate(line.id, "unit", e.target.value)}
+          className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-sm font-semibold text-slate-600 focus:outline-none appearance-none text-center"
+        >
+          {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+        </select>
+
+        {/* Separator */}
+        <span className="text-slate-300 text-sm font-medium">×</span>
+
+        {/* Unit price */}
+        <div className="flex-1 relative">
           <input
+            id={`line-price-${line.id}`}
             type="number"
-            value={line.unit_price}
+            value={line.unit_price || ""}
             onChange={(e) => onUpdate(line.id, "unit_price", parseFloat(e.target.value) || 0)}
             min="0"
             step="0.01"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base font-semibold text-slate-900 focus:outline-none focus:border-blue-500 text-right"
+            placeholder="0,00"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 text-right pr-6"
           />
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">€</span>
         </div>
-        <div>
-          <label className="text-[10px] text-slate-400 font-medium uppercase tracking-wide block mb-1">
-            Remise (%)
-            {!hasDiscount && <span className="text-slate-300 normal-case"> · optionnel</span>}
-          </label>
+
+        {/* Toggle discount */}
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className={cn(
+            "w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0",
+            hasDiscount ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
+          )}
+          title="Remise"
+        >
+          %
+        </button>
+      </div>
+
+      {/* Row 3: discount + total (expanded or just total) */}
+      {expanded && (
+        <div className="flex items-center gap-2 mt-2">
+          <label className="text-xs text-slate-400 font-medium">Remise</label>
           <input
             type="number"
             value={line.discount || ""}
@@ -945,18 +1029,23 @@ function LineRow({
             max="100"
             step="1"
             placeholder="0"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base font-semibold text-slate-900 focus:outline-none focus:border-blue-500 text-center"
+            className="w-20 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 text-center"
           />
+          <span className="text-xs text-slate-400">%</span>
         </div>
-      </div>
+      )}
 
-      <div className="flex items-center justify-end gap-2 mt-2.5">
+      {/* Line total */}
+      <div className="flex items-center justify-end gap-2 mt-2">
         {hasDiscount && (
-          <span className="text-xs text-slate-400 line-through tabular-nums">
+          <span className="text-xs text-slate-300 line-through tabular-nums">
             {formatCurrency(line.quantity * line.unit_price)}
           </span>
         )}
-        <span className={`text-sm font-black tabular-nums ${hasDiscount ? "text-emerald-600" : "text-slate-700"}`}>
+        <span className={cn(
+          "text-sm font-black tabular-nums",
+          lineTotal > 0 ? (hasDiscount ? "text-emerald-600" : "text-slate-800") : "text-slate-300"
+        )}>
           = {formatCurrency(lineTotal)} HT
         </span>
       </div>
@@ -968,11 +1057,9 @@ function LineRow({
 function SectionTotals({ lines }: { lines: LineItem[] }) {
   const hasAnySections = lines.some((l) => l.is_section);
   if (!hasAnySections) return null;
-
   const sections: { name: string; total: number }[] = [];
   let currentSection = "";
   let currentTotal = 0;
-
   for (const line of lines) {
     if (line.is_section) {
       if (currentSection && currentTotal > 0) sections.push({ name: currentSection, total: currentTotal });
@@ -983,18 +1070,93 @@ function SectionTotals({ lines }: { lines: LineItem[] }) {
     }
   }
   if (currentSection && currentTotal > 0) sections.push({ name: currentSection, total: currentTotal });
-
   if (sections.length === 0) return null;
-
   return (
     <div className="bg-slate-50 rounded-xl p-3 mb-1 space-y-1.5">
-      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sous-totaux par section</p>
+      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sous-totaux</p>
       {sections.map((s, i) => (
         <div key={i} className="flex justify-between text-sm">
           <span className="text-slate-600 font-medium truncate">{s.name}</span>
           <span className="font-bold text-slate-800 tabular-nums flex-shrink-0 ml-2">{formatCurrency(s.total)}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Section pièces jointes ───────────────────────────────────────────────────
+function AttachmentSection({
+  attachments, uploading, fileInputRef, onFileSelect, onRemove,
+}: {
+  attachments: AttachmentItem[];
+  uploading: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemove: (item: AttachmentItem) => void;
+}) {
+  const count = attachments.length;
+  const canAdd = count < MAX_ATTACHMENTS;
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <div className="p-4">
+      {count > 0 && (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {attachments.map((item) => (
+            <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100">
+              {item.file_type === "video" ? (
+                <video src={item.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+              ) : (
+                <img src={item.url} alt="" className="w-full h-full object-cover" />
+              )}
+              <div className="absolute bottom-1 left-1">
+                {item.file_type === "video"
+                  ? <div className="bg-black/60 rounded-md px-1.5 py-0.5 flex items-center gap-1"><Video className="w-2.5 h-2.5 text-white" /><span className="text-[10px] text-white font-medium">Vidéo</span></div>
+                  : <div className="bg-black/60 rounded-md p-1"><Image className="w-2.5 h-2.5 text-white" /></div>}
+              </div>
+              <button onClick={() => onRemove(item)} className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                <X className="w-3 h-3 text-white" />
+              </button>
+              {!item.persisted && <div className="absolute top-1 left-1 w-2 h-2 bg-amber-400 rounded-full" />}
+            </div>
+          ))}
+        </div>
+      )}
+      {canAdd && (
+        <>
+          {/* Gallery input */}
+          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={onFileSelect} className="hidden" />
+          {/* Camera input */}
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={onFileSelect} className="hidden" />
+
+          {uploading ? (
+            <div className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl py-3.5 text-slate-400 text-sm">
+              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              Upload en cours…
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 rounded-xl py-3 text-blue-700 font-semibold text-sm"
+              >
+                <Camera className="w-4 h-4" />
+                Prendre une photo
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 bg-slate-50 border border-slate-200 rounded-xl py-3 text-slate-600 font-semibold text-sm"
+              >
+                <Upload className="w-4 h-4" />
+                Galerie
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-slate-400 text-center mt-2">{MAX_ATTACHMENTS - count} emplacement{MAX_ATTACHMENTS - count > 1 ? "s" : ""} restant{MAX_ATTACHMENTS - count > 1 ? "s" : ""}</p>
+        </>
+      )}
+      {!canAdd && <p className="text-center text-sm text-slate-400 py-2">Limite de {MAX_ATTACHMENTS} fichiers atteinte</p>}
     </div>
   );
 }
@@ -1022,6 +1184,7 @@ function EstimatePreview({
 }) {
   const today = new Date();
   const expiresAt = new Date(Date.now() + validityDays * 86400000);
+  const fmt = (d: Date) => d.toLocaleDateString("fr-BE", { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-50 animate-slide-up overflow-y-auto">
@@ -1031,24 +1194,15 @@ function EstimatePreview({
           <X className="w-4 h-4 text-amber-900" />
         </button>
       </div>
-
       <div className="bg-blue-600 text-white px-4 py-6">
         <div className="max-w-2xl mx-auto">
-          {business?.logo_url ? (
-            <img src={business.logo_url} alt={business.name || ""} className="h-10 object-contain mb-2" />
-          ) : (
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 className="w-6 h-6 text-blue-300" />
-              <p className="text-2xl font-black">{business?.name || "Mon Entreprise"}</p>
-            </div>
-          )}
+          {business?.logo_url
+            ? <img src={business.logo_url} alt={business.name || ""} className="h-10 object-contain mb-2" />
+            : <div className="flex items-center gap-2 mb-2"><Building2 className="w-6 h-6 text-blue-300" /><p className="text-2xl font-black">{business?.name || "Mon Entreprise"}</p></div>}
           {business?.activity && <p className="text-blue-200 text-sm">{business.activity}</p>}
         </div>
       </div>
-
       <div className="max-w-2xl mx-auto w-full px-4 py-6 flex flex-col gap-5">
-
-        {/* Infos devis */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
@@ -1061,14 +1215,8 @@ function EstimatePreview({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-slate-400">Émis le</p>
-              <p className="font-semibold text-slate-900">{formatDate(today)}</p>
-            </div>
-            <div>
-              <p className="text-slate-400">Valable jusqu'au</p>
-              <p className="font-semibold text-slate-900">{formatDate(expiresAt)}</p>
-            </div>
+            <div><p className="text-slate-400">Émis le</p><p className="font-semibold text-slate-900">{fmt(today)}</p></div>
+            <div><p className="text-slate-400">Valable jusqu'au</p><p className="font-semibold text-slate-900">{fmt(expiresAt)}</p></div>
             {client && (
               <div className="col-span-2">
                 <p className="text-slate-400">Destinataire</p>
@@ -1078,29 +1226,20 @@ function EstimatePreview({
             )}
           </div>
         </div>
-
-        {/* Photos & vidéos */}
         {attachments.length > 0 && (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-50">
-              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
-                Photos & Vidéos
-                <span className="ml-2 font-normal normal-case text-slate-400">({attachments.length})</span>
-              </h2>
+              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Photos & Vidéos <span className="font-normal normal-case text-slate-400">({attachments.length})</span></h2>
             </div>
             <div className="p-4 grid grid-cols-3 gap-2">
               {attachments.map((item) => (
                 <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100">
-                  {item.file_type === "video" ? (
-                    <video src={item.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
-                  ) : (
-                    <img src={item.url} alt="" className="w-full h-full object-cover" />
-                  )}
+                  {item.file_type === "video"
+                    ? <video src={item.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                    : <img src={item.url} alt="" className="w-full h-full object-cover" />}
                   {item.file_type === "video" && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center">
-                        <Video className="w-4 h-4 text-white" />
-                      </div>
+                      <div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center"><Video className="w-4 h-4 text-white" /></div>
                     </div>
                   )}
                 </div>
@@ -1108,20 +1247,16 @@ function EstimatePreview({
             </div>
           </div>
         )}
-
-        {/* Lignes */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-50">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Détail des prestations</h2>
           </div>
           {lines.map((line) => {
-            if (line.is_section) {
-              return (
-                <div key={line.id} className="px-5 py-2.5 bg-slate-50 border-b border-slate-100">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{line.description || "Section"}</p>
-                </div>
-              );
-            }
+            if (line.is_section) return (
+              <div key={line.id} className="px-5 py-2.5 bg-slate-50 border-b border-slate-100">
+                <p className="text-xs font-black text-slate-500 uppercase tracking-wide">{line.description || "Section"}</p>
+              </div>
+            );
             const lineTotal = line.quantity * line.unit_price * (1 - line.discount / 100);
             return (
               <div key={line.id} className="px-5 py-3.5 border-b border-slate-50 last:border-0">
@@ -1134,11 +1269,7 @@ function EstimatePreview({
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    {line.discount > 0 && (
-                      <p className="text-xs text-slate-300 line-through tabular-nums">
-                        {formatCurrency(line.quantity * line.unit_price)}
-                      </p>
-                    )}
+                    {line.discount > 0 && <p className="text-xs text-slate-300 line-through tabular-nums">{formatCurrency(line.quantity * line.unit_price)}</p>}
                     <p className="text-sm font-bold text-slate-900 tabular-nums">{formatCurrency(lineTotal)}</p>
                   </div>
                 </div>
@@ -1146,35 +1277,21 @@ function EstimatePreview({
             );
           })}
         </div>
-
-        {/* Totaux */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2.5">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Total HT</span>
-            <span className="font-semibold text-slate-900 tabular-nums">{formatCurrency(totalHT)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">TVA {vatRate}%</span>
-            <span className="font-semibold text-slate-900 tabular-nums">{formatCurrency(vatAmount)}</span>
-          </div>
-          {vatRate === 0 && (
-            <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-              TVA non applicable – art. 56bis du Code TVA belge
-            </p>
-          )}
+          <div className="flex justify-between text-sm"><span className="text-slate-500">Total HT</span><span className="font-semibold text-slate-900 tabular-nums">{formatCurrency(totalHT)}</span></div>
+          <div className="flex justify-between text-sm"><span className="text-slate-500">TVA {vatRate}%</span><span className="font-semibold text-slate-900 tabular-nums">{formatCurrency(vatAmount)}</span></div>
+          {vatRate === 0 && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">TVA non applicable – art. 56bis du Code TVA belge</p>}
           <div className="flex justify-between border-t border-slate-100 pt-2.5">
             <span className="font-black text-slate-900 text-lg">Total TTC</span>
             <span className="text-2xl font-black text-blue-600 tabular-nums">{formatCurrency(totalTTC)}</span>
           </div>
         </div>
-
         {clientNotes && (
           <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
             <p className="text-sm font-bold text-amber-900 mb-1">Notes</p>
             <p className="text-sm text-amber-800 whitespace-pre-line">{clientNotes}</p>
           </div>
         )}
-
         {business && (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <p className="text-sm font-bold text-slate-700 mb-3">{business.name}</p>
@@ -1187,61 +1304,15 @@ function EstimatePreview({
             </div>
           </div>
         )}
-
         <div className="bg-slate-100 rounded-2xl p-4 text-center">
           <p className="text-sm text-slate-500">Le client pourra signer électroniquement depuis ce devis</p>
         </div>
-
         <div className="grid grid-cols-2 gap-3">
-          <Button size="xl" variant="outline" onClick={onClose} className="w-full">
-            <ArrowLeft className="w-5 h-5" />
-            Modifier
-          </Button>
-          <Button size="xl" onClick={onSend} loading={sending} className="w-full">
-            <Send className="w-5 h-5" />
-            Envoyer
-          </Button>
+          <Button size="xl" variant="outline" onClick={onClose} className="w-full"><ArrowLeft className="w-5 h-5" />Modifier</Button>
+          <Button size="xl" onClick={onSend} loading={sending} className="w-full"><Send className="w-5 h-5" />Envoyer</Button>
         </div>
-
         <div className="h-6" />
       </div>
     </div>
-  );
-}
-
-// ─── Suggestions par métier ───────────────────────────────────────────────────
-function SuggestionsPanel({ activity, onApply }: { activity?: string | null; onApply: (s: TradeSuggestion) => void }) {
-  const [open, setOpen] = useState(false);
-  const suggestions = getSuggestionsForActivity(activity);
-  if (!suggestions.length) return null;
-
-  return (
-    <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
-        <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-          <Lightbulb className="w-4 h-4 text-amber-600" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-bold text-slate-900">Suggestions de prestations</p>
-          <p className="text-xs text-slate-400">{activity ? `Pour ${activity}` : "Cliquez pour ajouter une prestation type"}</p>
-        </div>
-        {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-      </button>
-      {open && (
-        <div className="border-t border-slate-50 px-3 py-3 flex flex-wrap gap-2">
-          <p className="w-full text-xs text-slate-400 mb-1">Appuyez pour remplir la description · Le prix reste à votre charge</p>
-          {suggestions.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => onApply(s)}
-              className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 active:scale-95 transition-transform text-left"
-            >
-              <Plus className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-              {s.title}
-            </button>
-          ))}
-        </div>
-      )}
-    </section>
   );
 }

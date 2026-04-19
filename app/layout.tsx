@@ -36,8 +36,11 @@ export default function RootLayout({
     <html lang="fr" className={`${geist.variable} h-full`}>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* Pre-connect to Supabase so DB queries start immediately */}
+        <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
       </head>
-      <body className="h-full bg-slate-50 font-[var(--font-geist)] antialiased">
+      <body className="h-full bg-slate-50 font-[var(--font-geist)] antialiased touch-manipulation">
         {children}
         <Toaster
           position="top-center"

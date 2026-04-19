@@ -3,12 +3,12 @@ import QuickIntervention from "@/components/interventions/QuickIntervention";
 
 export default async function NouvelleInterventionPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { data: business } = await supabase
     .from("businesses")
     .select("*")
-    .eq("owner_id", user!.id)
+    .eq("owner_id", session!.user.id)
     .maybeSingle();
 
   const { data: clients } = await supabase

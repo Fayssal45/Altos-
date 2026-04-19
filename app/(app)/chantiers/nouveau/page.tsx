@@ -3,12 +3,12 @@ import JobForm from "@/components/jobs/JobForm";
 
 export default async function NouveauChantierPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { data: business } = await supabase
     .from("businesses")
     .select("id")
-    .eq("owner_id", user!.id)
+    .eq("owner_id", session!.user.id)
     .single();
 
   const [{ data: clients }, { data: estimates }] = await Promise.all([

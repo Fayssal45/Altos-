@@ -4,13 +4,13 @@ import CatalogView from "@/components/catalogue/CatalogView";
 
 export default async function CataloguePage() {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) redirect("/login");
 
   const { data: business } = await supabase
     .from("businesses")
     .select("*")
-    .eq("owner_id", user.id)
+    .eq("owner_id", session.user.id)
     .single();
 
   const { data: items } = await supabase

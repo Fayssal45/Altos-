@@ -7,7 +7,7 @@ import { Camera, ArrowLeft, Upload, Trash2, ImageIcon } from "lucide-react";
 import type { Job, JobPhoto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
-import imageCompression from "browser-image-compression";
+// imageCompression loaded on demand (see upload handler)
 
 interface JobPhotosProps {
   job: Job & { client: { full_name: string } | null };
@@ -49,6 +49,7 @@ export default function JobPhotos({ job, photos: initialPhotos }: JobPhotosProps
 
       for (const file of files) {
         // Compression côté client pour économiser la data
+        const imageCompression = (await import("browser-image-compression")).default;
         const compressed = await imageCompression(file, {
           maxSizeMB: 0.8,
           maxWidthOrHeight: 1920,

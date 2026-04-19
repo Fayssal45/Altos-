@@ -3,19 +3,15 @@ import ClientList from "@/components/clients/ClientList";
 
 export default async function ClientsPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { data: business } = await supabase
     .from("businesses")
     .select("id")
-    .eq("owner_id", user!.id)
+    .eq("owner_id", session!.user.id)
     .single();
 
-  const { data: clients } = await supabase
-    .from("clients")
-    .select("*")
-    .eq("business_id", business?.id || "")
-    .order("full_name");
-
-  return <ClientList clients={clients || []} />;
+  // No clients fetch — the layout already seeded the SWR cache.
+  // ClientList reads from SWR fallback instantly.
+  return <ClientList clients={[]} businessId={business?.id || ""} />;
 }

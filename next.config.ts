@@ -14,6 +14,14 @@ const withPWA =
 const nextConfig: NextConfig = {
   // Use webpack in production (for next-pwa), Turbopack in dev
   turbopack: {},
+  experimental: {
+    // Cache dynamic route payloads client-side for 60s.
+    // Combined with router.prefetch() in AppShell, tab navigation is instant.
+    staleTimes: {
+      dynamic: 60,
+      static: 300,
+    },
+  },
   images: {
     remotePatterns: [
       {

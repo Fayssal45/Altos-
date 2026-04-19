@@ -3,20 +3,15 @@ import EstimateList from "@/components/estimates/EstimateList";
 
 export default async function DevisPage() {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { data: business } = await supabase
     .from("businesses")
     .select("*")
-    .eq("owner_id", user!.id)
+    .eq("owner_id", session!.user.id)
     .single();
 
-  const { data: estimates } = await supabase
-    .from("estimates")
-    .select("*, client:clients(full_name, phone, company_name)")
-    .eq("business_id", business?.id || "")
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  return <EstimateList estimates={estimates || []} businessName={business?.name || ""} business={business} />;
+  // No estimates fetch — the layout already seeded the SWR cache with
+  // estimates data. EstimateList reads from SWR fallback instantly.
+  return <EstimateList estimates={[]} businessName={business?.name || ""} business={business} />;
 }

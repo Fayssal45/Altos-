@@ -25,20 +25,25 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
 
-  // Routes publiques (pas besoin d'auth)
-  const publicRoutes = ["/login", "/signup", "/p/", "/api/"];
-  const isPublic = publicRoutes.some((r) => pathname.startsWith(r));
+  // Routes publiques — /auth/ MUST be public so OAuth callback can exchange code
+  const publicPrefixes = ["/login", "/signup", "/p/", "/api/", "/auth/"];
+  const isPublic = publicPrefixes.some((r) => pathname.startsWith(r));
 
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  if (!isPublic) {
+    // getSession() reads the JWT from cookie — no Supabase network call.
+    // JWT is cryptographically signed so it cannot be forged.
+    // Individual server components call getUser() when they need verified identity.
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

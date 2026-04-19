@@ -5,12 +5,24 @@ import Link from "next/link";
 import { Users, Plus, Search, Phone, Mail, ChevronRight, MessageCircle } from "lucide-react";
 import type { Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import useSWR from "swr";
+import { createClient } from "@/lib/supabase/client";
 
 interface ClientListProps {
   clients: Client[];
+  businessId: string;
 }
 
-export default function ClientList({ clients }: ClientListProps) {
+export default function ClientList({ clients: initialClients, businessId }: ClientListProps) {
+  const supabase = createClient();
+  const { data: clients = initialClients } = useSWR<Client[]>(
+    businessId ? `clients-list:${businessId}` : null,
+    async () => {
+      const { data } = await supabase.from("clients").select("*").eq("business_id", businessId).order("full_name");
+      return (data as Client[]) ?? [];
+    },
+    { fallbackData: initialClients, revalidateOnMount: true, revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
   const [search, setSearch] = useState("");
 
   const filtered = clients.filter((c) =>

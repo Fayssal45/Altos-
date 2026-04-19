@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn, formatDate } from "@/lib/utils";
@@ -10,7 +10,9 @@ import {
   Home, FileText, Users, Calendar, Bell,
   Plus, X, Zap, Briefcase, Camera,
   Paperclip, AlertTriangle, CheckCircle2, Clock, ChevronRight,
+  ScanLine, Settings,
 } from "lucide-react";
+import Image from "next/image";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 
 const NAV_ITEMS = [
@@ -20,6 +22,9 @@ const NAV_ITEMS = [
   { href: "/planning",  icon: Calendar, label: "Planning" },
   { href: "/relances",  icon: Bell,     label: "Relances" },
 ];
+
+// Main tab paths that get kept in DOM after first visit (SPA-like caching)
+const TAB_PATHS = NAV_ITEMS.map((n) => n.href);
 
 const FAB_ACTIONS = [
   {
@@ -50,6 +55,13 @@ const FAB_ACTIONS = [
     shadow: "shadow-violet-600/40",
     href: "/chantiers/nouveau",
   },
+  {
+    label: "Mes documents",
+    icon: ScanLine,
+    color: "bg-slate-700",
+    shadow: "shadow-slate-700/40",
+    href: "/documents",
+  },
 ];
 
 interface AppShellProps {
@@ -67,7 +79,27 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
   const [notifOpen, setNotifOpen] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  // SPA-like tab cache: keeps visited tab pages mounted in the DOM so
+  // switching back is instant — no re-mount, no loading state.
+  const [tabCache, setTabCache] = useState<Record<string, React.ReactNode>>({});
+  const isTabPath = TAB_PATHS.includes(pathname);
+
+  useEffect(() => {
+    if (isTabPath) {
+      setTabCache((prev) => ({ ...prev, [pathname]: children }));
+    }
+  }, [pathname, children, isTabPath]);
+
   const { data: notifications } = useNotifications(business?.id);
+
+  // Prefetch ALL main routes immediately on mount.
+  // With staleTimes.dynamic=60, these prefetched payloads stay cached for 60s
+  // so the first tap on any tab is already instant.
+  useEffect(() => {
+    const routes = ["/dashboard", "/devis", "/clients", "/planning", "/chantiers", "/relances"];
+    routes.forEach((r) => router.prefetch(r));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const urgentCount = (notifications || []).filter(n => n.category === "urgent").length;
   const todayCount = (notifications || []).filter(n => n.category === "today").length;
   const notifTotal = (notifications || []).length;
@@ -100,22 +132,29 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
     <div className="flex flex-col h-full max-w-lg mx-auto bg-slate-50">
 
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-100 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
+      <header className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          {/* Logo + name */}
+          <Link href="/dashboard" className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center">
+              {business?.logo_url ? (
+                <img src={business.logo_url} alt={business.name || "Logo"} className="w-full h-full object-contain" />
+              ) : (
+                <Image src="/logo.png" alt="Altos" width={36} height={36} className="object-contain" />
+              )}
             </div>
-            <div>
-              <p className="text-sm font-black text-slate-900 leading-none">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900 leading-none truncate">
                 {business?.name || "Altos"}
               </p>
               {business?.activity && (
-                <p className="text-[10px] text-slate-400 leading-none mt-0.5">{business.activity}</p>
+                <p className="text-[10px] text-slate-400 leading-none mt-0.5 truncate">{business.activity}</p>
               )}
             </div>
           </Link>
-          <div className="flex items-center gap-2">
+
+          {/* Right actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Notification bell */}
             <button
               onClick={() => setNotifOpen(true)}
@@ -132,9 +171,18 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
                 </span>
               )}
             </button>
+            {/* Settings */}
+            <Link
+              href="/profil/entreprise"
+              className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center"
+              aria-label="Paramètres"
+            >
+              <Settings className="w-4 h-4 text-slate-600" />
+            </Link>
+            {/* Avatar */}
             <Link
               href="/profil"
-              className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm"
+              className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
             >
               {initial}
             </Link>
@@ -142,15 +190,30 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto pb-24">
-        {children}
+      {/* Main content — SPA tab cache */}
+      <main className="flex-1 relative overflow-hidden">
+        {/* Cached tab pages: kept mounted after first visit so return is instant */}
+        {Object.entries(tabCache).map(([path, content]) => (
+          <div
+            key={path}
+            className={`absolute inset-0 overflow-y-auto pb-24 ${path === pathname ? "" : "hidden"}`}
+            aria-hidden={path !== pathname}
+          >
+            {content}
+          </div>
+        ))}
+        {/* Current page: shown when not yet cached (first visit) or non-tab page */}
+        {(!isTabPath || !tabCache[pathname]) && (
+          <div className="absolute inset-0 overflow-y-auto pb-24">
+            {children}
+          </div>
+        )}
       </main>
 
       {/* FAB overlay */}
       {fabOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-black/50"
           onClick={() => setFabOpen(false)}
         />
       )}
@@ -207,7 +270,7 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
       {capturedPhoto && (
         <>
           <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/60"
             onClick={() => setCapturedPhoto(null)}
           />
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-white rounded-t-3xl shadow-2xl">
@@ -266,6 +329,19 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
                 </button>
 
                 <button
+                  onClick={() => { setCapturedPhoto(null); router.push("/documents"); }}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-slate-50 active:bg-slate-100"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0">
+                    <ScanLine className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-slate-900">Enregistrer dans Mes documents</p>
+                    <p className="text-xs text-slate-500">Ticket, facture, scan de document</p>
+                  </div>
+                </button>
+
+                <button
                   onClick={() => setCapturedPhoto(null)}
                   className="flex items-center justify-center px-4 py-3.5 rounded-2xl bg-slate-100 active:bg-slate-200 mt-1"
                 >
@@ -285,7 +361,7 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
       {notifOpen && (
         <>
           <div
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/50"
             onClick={() => setNotifOpen(false)}
           />
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col">
@@ -337,6 +413,7 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className={cn(
                   "relative flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-xl transition-colors",
                   isActive ? "text-blue-600" : "text-slate-400"

@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Send, Eye, Check, CreditCard, MessageCircle, Download } from "lucide-react";
+import { ArrowLeft, Send, Eye, Check, CreditCard, MessageCircle, Download, Copy, Receipt } from "lucide-react";
 import { formatCurrency, formatDate, ESTIMATE_STATUS_CONFIG, getEstimateShareUrl, getWhatsAppReminderText, formatPhoneForWhatsApp } from "@/lib/utils";
 import type { Estimate, EstimateItem, Business, Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { generateEstimatePdf } from "@/lib/generateEstimatePdf";
+// generateEstimatePdf is dynamically imported on demand to keep the bundle small
+import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
 type FullEstimate = Estimate & {
@@ -22,7 +23,10 @@ export default function EstimateDetailView({
   business: Business | null;
 }) {
   const router = useRouter();
+  const supabase = createClient();
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const statusConfig = ESTIMATE_STATUS_CONFIG[estimate.status];
   const totalHT = estimate.total_amount_ht || 0;
   const vatAmount = totalHT * (estimate.vat_rate || 20) / 100;
@@ -34,11 +38,76 @@ export default function EstimateDetailView({
   const handleDownloadPdf = async () => {
     setPdfLoading(true);
     try {
+      const { generateEstimatePdf } = await import("@/lib/generateEstimatePdf");
       await generateEstimatePdf(estimate, business, client);
     } catch {
       toast.error("Erreur lors de la génération du PDF");
     } finally {
       setPdfLoading(false);
+    }
+  };
+
+  // Generate invoice PDF — reuses the same PDF generator but labelled as FACTURE
+  const handleGenerateInvoice = async () => {
+    setInvoiceLoading(true);
+    try {
+      // Mark estimate as invoiced if not already
+      if (estimate.status !== "invoiced" && estimate.status !== "paid") {
+        await supabase.from("estimates").update({ status: "invoiced" }).eq("id", estimate.id);
+      }
+      // Generate PDF with invoice title override
+      const invoiceEstimate = {
+        ...estimate,
+        number: estimate.number?.replace(/^DEV/, "FAC") ?? estimate.number,
+        title: `FACTURE – ${estimate.title || "Intervention"}`,
+      };
+      const { generateEstimatePdf } = await import("@/lib/generateEstimatePdf");
+      await generateEstimatePdf(invoiceEstimate as typeof estimate, business, client);
+      toast.success("Facture PDF générée !");
+    } catch {
+      toast.error("Erreur lors de la génération de la facture");
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
+  // Duplicate estimate
+  const handleDuplicate = async () => {
+    if (!business?.id) return;
+    setDuplicating(true);
+    try {
+      const { data: numData } = await supabase.rpc("generate_estimate_number", { p_business_id: business.id });
+      const { data: newEst, error } = await supabase
+        .from("estimates")
+        .insert({
+          business_id: business.id,
+          client_id: client?.id || null,
+          number: numData,
+          status: "draft",
+          title: `${estimate.title || "Devis"} (copie)`,
+          vat_rate: estimate.vat_rate,
+          client_notes: estimate.client_notes,
+          validity_days: estimate.validity_days,
+          issued_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + (estimate.validity_days || 30) * 86400000).toISOString(),
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      if (estimate.items?.length) {
+        await supabase.from("estimate_items").insert(
+          estimate.items.map(({ id: _id, estimate_id: _eid, created_at: _cat, ...item }: EstimateItem & { created_at?: string }) => ({
+            ...item,
+            estimate_id: newEst.id,
+          }))
+        );
+      }
+      toast.success("Devis dupliqué !");
+      router.push(`/devis/${newEst.id}/edit`);
+    } catch {
+      toast.error("Erreur lors de la duplication");
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -154,6 +223,19 @@ export default function EstimateDetailView({
 
         {/* Actions */}
         <div className="flex flex-col gap-3">
+          {/* Invoice: generate facture PDF (for accepted/paid) */}
+          {["accepted", "invoiced", "paid"].includes(estimate.status) && (
+            <Button
+              size="lg"
+              onClick={handleGenerateInvoice}
+              loading={invoiceLoading}
+              className="w-full bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Receipt className="w-5 h-5" />
+              Générer la facture PDF
+            </Button>
+          )}
+
           {estimate.status === "accepted" && client?.phone && (
             <Button size="lg" onClick={sendReminder} className="w-full bg-[#25D366]">
               <MessageCircle className="w-5 h-5" />
@@ -174,7 +256,18 @@ export default function EstimateDetailView({
             className="w-full"
           >
             <Download className="w-5 h-5" />
-            Télécharger PDF
+            Télécharger PDF devis
+          </Button>
+
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={handleDuplicate}
+            loading={duplicating}
+            className="w-full"
+          >
+            <Copy className="w-5 h-5" />
+            Dupliquer ce devis
           </Button>
         </div>
 
