@@ -21,7 +21,7 @@ export default async function PlanningPage() {
   const [{ data: jobs }, { data: reminders }, { data: clients }] = await Promise.all([
     supabase
       .from("jobs")
-      .select("id, title, status, scheduled_date, address, client:clients(full_name)")
+      .select("id, title, status, scheduled_date, address, client:clients(full_name, phone)")
       .eq("business_id", businessId)
       .not("scheduled_date", "is", null)
       .gte("scheduled_date", rangeStart)

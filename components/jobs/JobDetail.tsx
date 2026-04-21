@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowLeft, Camera, Calendar, MapPin, User, FileText, CheckCircle2, PlayCircle, Clock, Navigation } from "lucide-react";
+import { ArrowLeft, Camera, Calendar, MapPin, User, FileText, CheckCircle2, PlayCircle, Clock, Navigation, Star, X, MessageCircle } from "lucide-react";
 import type { Job, JobPhoto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { formatDate, JOB_STATUS_CONFIG, formatCurrency, formatDuration } from "@/lib/utils";
@@ -24,8 +24,9 @@ interface JobDetailProps {
 export default function JobDetail({ job: initialJob, photos }: JobDetailProps) {
   const router = useRouter();
   const supabase = createClient();
-  const [job, setJob] = useState(initialJob);
+  const [job, setJob]           = useState(initialJob);
   const [updating, setUpdating] = useState(false);
+  const [showDoneSheet, setShowDoneSheet] = useState(false);
 
   const updateStatus = async (status: string) => {
     setUpdating(true);
@@ -35,7 +36,11 @@ export default function JobDetail({ job: initialJob, photos }: JobDetailProps) {
       const { error } = await supabase.from("jobs").update(updates).eq("id", job.id);
       if (error) throw error;
       setJob((prev) => ({ ...prev, status: status as Job["status"], ...updates }));
-      toast.success(status === "completed" ? "Intervention terminée !" : "Statut mis à jour");
+      if (status === "completed") {
+        setShowDoneSheet(true);
+      } else {
+        toast.success("Statut mis à jour");
+      }
     } catch {
       toast.error("Erreur lors de la mise à jour");
     } finally {
@@ -206,6 +211,81 @@ export default function JobDetail({ job: initialJob, photos }: JobDetailProps) {
 
         <div className="h-4" />
       </div>
+
+      {/* ── Post-completion sheet ─────────────────────────────────────────── */}
+      {showDoneSheet && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setShowDoneSheet(false)} />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up">
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3" />
+            <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+              <div>
+                <p className="text-base font-black text-slate-900">Intervention terminée ✓</p>
+                <p className="text-[12px] text-slate-400 mt-0.5">Que souhaitez-vous faire ensuite ?</p>
+              </div>
+              <button onClick={() => setShowDoneSheet(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 px-5 pb-2 pt-3">
+              {/* Demander un avis */}
+              <Link
+                href="/commercial/reputation"
+                onClick={() => setShowDoneSheet(false)}
+                className="flex items-center gap-4 bg-amber-50 rounded-2xl px-4 py-3.5 active:bg-amber-100"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
+                  <Star className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Demander un avis Google</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Envoyez une demande d&apos;avis à {job.client?.full_name ?? "ce client"}</p>
+                </div>
+              </Link>
+
+              {/* Créer avant/après */}
+              <Link
+                href="/commercial/chantiers"
+                onClick={() => setShowDoneSheet(false)}
+                className="flex items-center gap-4 bg-pink-50 rounded-2xl px-4 py-3.5 active:bg-pink-100"
+              >
+                <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center flex-shrink-0">
+                  <Camera className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Créer un avant / après</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Ajoutez ce chantier à votre galerie</p>
+                </div>
+              </Link>
+
+              {/* Relancer */}
+              <Link
+                href="/commercial/parrainage"
+                onClick={() => setShowDoneSheet(false)}
+                className="flex items-center gap-4 bg-violet-50 rounded-2xl px-4 py-3.5 active:bg-violet-100"
+              >
+                <div className="w-10 h-10 rounded-xl bg-violet-500 flex items-center justify-center flex-shrink-0">
+                  <MessageCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Demander une recommandation</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Invitez ce client à parler de vous</p>
+                </div>
+              </Link>
+            </div>
+            <div className="px-5 pb-5 pt-2">
+              <button
+                onClick={() => setShowDoneSheet(false)}
+                className="w-full h-11 bg-slate-100 rounded-xl font-semibold text-sm text-slate-500 active:bg-slate-200"
+              >
+                Pas maintenant
+              </button>
+            </div>
+            <div className="pb-safe h-2" />
+          </div>
+        </>
+      )}
     </div>
   );
 }

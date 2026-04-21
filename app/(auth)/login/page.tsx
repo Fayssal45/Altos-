@@ -134,35 +134,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center p-5"
-      style={{ background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)" }}
-    >
-      {/* Decorative blobs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center p-5 bg-slate-50">
 
       <div className="relative w-full max-w-sm">
 
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-3">
-            <Image
-              src="/logo.svg"
-              alt="Altos"
-              width={88}
-              height={88}
-              className="drop-shadow-2xl"
-              priority
-            />
-          </div>
-          <p className="text-blue-200/60 text-sm mt-1">votre assistant terrain</p>
+        <div className="flex items-center justify-center mb-8">
+          <Image
+            src="/logo.svg"
+            alt="Altos"
+            width={200}
+            height={72}
+            className="h-14 w-auto"
+            priority
+          />
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-3xl shadow-2xl shadow-black/30 overflow-hidden">
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/80 border border-slate-100 overflow-hidden">
 
           {/* Mode tabs */}
           <div className="flex border-b border-slate-100">
@@ -286,7 +275,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-center text-blue-200/50 text-xs mt-6">
+        <p className="text-center text-slate-400 text-xs mt-6">
           Essai gratuit 14 jours · Aucune CB requise
         </p>
       </div>

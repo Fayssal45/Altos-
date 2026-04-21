@@ -1,34 +1,102 @@
 @import "tailwindcss";
 
+/* ── Design tokens ──────────────────────────────────────────────────────────── */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --primary: #2563eb;
-  --border: #e2e8f0;
-  --radius: 16px;
+  --background:    #f8fafc;
+  --foreground:    #0f172a;
+  --card:          #ffffff;
+  --primary:       #2563eb;
+  --border:        #e2e8f0;
+  --radius:        14px;
+
+  /* Brand gradient: Blue → Orange */
+  --grad-start:    #2563eb;
+  --grad-end:      #f97316;
+  --gradient-brand: linear-gradient(135deg, var(--grad-start) 0%, var(--grad-end) 100%);
 }
 
-/* Touch targets minimum 44px */
+/* ── Body ────────────────────────────────────────────────────────────────────── */
+body {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(37,99,235,0.04) 0%, transparent 60%),
+    radial-gradient(circle at 80% 90%, rgba(249,115,22,0.03) 0%, transparent 60%);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  font-size: 15px; /* baseline for outdoor readability */
+}
+
+/* ── Touch targets ───────────────────────────────────────────────────────────── */
 button, a, [role="button"] {
   min-height: 44px;
   min-width: 44px;
 }
 
-/* Scrollbar discrète */
+/* ── Scrollbar ───────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* iOS safe area */
+/* ── Safe area ───────────────────────────────────────────────────────────────── */
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
 
-/* No tap highlight */
+/* ── No tap flash ────────────────────────────────────────────────────────────── */
 * { -webkit-tap-highlight-color: transparent; }
 
-/* Animations */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GRADIENT BRAND UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Main CTA button with brand gradient */
+.btn-gradient {
+  background: var(--gradient-brand);
+  color: #fff;
+  font-weight: 800;
+  border-radius: 14px;
+  transition: opacity 0.15s, transform 0.1s;
+  box-shadow: 0 4px 14px 0 rgba(37,99,235,0.25), 0 1px 3px rgba(249,115,22,0.15);
+}
+.btn-gradient:active {
+  opacity: 0.88;
+  transform: scale(0.97);
+}
+
+/* Tactile press effect for any button */
+.btn-tactile {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.btn-tactile:active {
+  transform: scale(0.96);
+}
+
+/* Gradient text */
+.text-gradient {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient border accent */
+.border-gradient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: var(--gradient-brand);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
 @keyframes slide-up {
   from { transform: translateY(16px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
@@ -39,14 +107,120 @@ button, a, [role="button"] {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.animate-fade-in { animation: fade-in 0.15s ease-out; }
+.animate-fade-in { animation: fade-in 0.15s ease-out both; }
 
-/* Page background – subtil fond quadrillé très doux */
-body {
-  background-color: #f1f5f9;
-  background-image:
-    radial-gradient(circle at 20% 10%, rgba(37,99,235,0.04) 0%, transparent 60%),
-    radial-gradient(circle at 80% 90%, rgba(139,92,246,0.03) 0%, transparent 60%);
-  color: var(--foreground);
-  -webkit-font-smoothing: antialiased;
+/* Mode switch: slide in from right (going forward: terrain→admin→commercial) */
+@keyframes mode-in-right {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+/* Mode switch: slide in from left */
+@keyframes mode-in-left {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-mode-right { animation: mode-in-right 0.2s cubic-bezier(.2,.8,.4,1) both; }
+.animate-mode-left  { animation: mode-in-left  0.2s cubic-bezier(.2,.8,.4,1) both; }
+
+/* Scale-in for cards/modals */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in { animation: scale-in 0.2s cubic-bezier(.2,.8,.4,1) both; }
+
+/* Pulse for badge/dot */
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.3); }
+}
+.animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CARD SYSTEM
+   Premium card aesthetic: white bg, soft shadow, 14px radius
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+  border: 1px solid rgba(226,232,240,0.8);
+}
+
+.card-elevated {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(15,23,42,0.08), 0 1px 4px rgba(15,23,42,0.04);
+  border: 1px solid rgba(226,232,240,0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   OUTDOOR READABILITY
+   High contrast, larger fonts for bright sunlight conditions
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Applied to the main content scroll areas in Terrain mode */
+.outdoor-text p, .outdoor-text span {
+  letter-spacing: -0.01em;
+}
+
+/* Ensure minimum contrast for all key text */
+.text-body  { color: #1e293b; font-weight: 500; }
+.text-label { color: #475569; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.text-muted { color: #64748b; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   BEFORE / AFTER SLIDER
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.ba-slider {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  cursor: col-resize;
+}
+
+.ba-slider-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 1.5px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.2);
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.ba-slider-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 36px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   OFFLINE BANNER
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.offline-banner {
+  background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  padding: 6px 16px;
+  letter-spacing: 0.01em;
 }

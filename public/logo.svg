@@ -1,11 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 72" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#3b82f6"/>
+    <linearGradient id="blueGrad" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#2563eb"/>
       <stop offset="100%" stop-color="#1d4ed8"/>
     </linearGradient>
+    <linearGradient id="orangeGrad" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
   </defs>
-  <rect width="120" height="120" rx="28" fill="url(#bg)"/>
-  <path d="M60 22 L90 86 H76 L60 50 L44 86 H30 Z" fill="white" opacity="0.95"/>
-  <path d="M48 68 H72" stroke="white" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Left puzzle piece (blue) -->
+  <g transform="translate(4, 8)">
+    <path d="
+      M4,4 Q4,0 8,0 L24,0 Q28,0 28,4
+      L28,14
+      Q28,14 32,14 Q36,14 36,18 Q36,22 32,22 Q28,22 28,22
+      L28,40 Q28,44 24,44 L8,44 Q4,44 4,40
+      L4,30
+      Q4,30 0,30 Q-4,30 -4,26 Q-4,22 0,22 Q4,22 4,22
+      Z" fill="url(#blueGrad)"/>
+  </g>
+
+  <!-- Right puzzle piece (orange) -->
+  <g transform="translate(32, 8)">
+    <path d="
+      M4,0 L20,0 Q24,0 24,4
+      L24,22
+      Q24,22 28,22 Q32,22 32,26 Q32,30 28,30 Q24,30 24,30
+      L24,40 Q24,44 20,44 L4,44 Q0,44 0,40
+      L0,22
+      Q0,22 -4,22 Q-8,22 -8,18 Q-8,14 -4,14 Q0,14 0,14
+      L0,4 Q0,0 4,0 Z" fill="url(#orangeGrad)"/>
+  </g>
+
+  <!-- ALTOS text with brand gradient -->
+  <text x="84" y="34" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-weight="800" font-size="28" fill="url(#brandGrad)" letter-spacing="-0.5">ALTOS</text>
+
+  <!-- Subtitle -->
+  <text x="85" y="52" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-weight="400" font-size="10.5" fill="#64748B" letter-spacing="0.3">votre assistant terrain</text>
 </svg>

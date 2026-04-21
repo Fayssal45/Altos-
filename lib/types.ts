@@ -73,6 +73,10 @@ export interface Business {
   peppol_address: string | null;
   peppol_enabled: boolean;
   accounting_provider: AccountingProvider | null;
+  // ── Added by commercial migration ─────────────────────────────────────
+  google_review_url: string | null;
+  review_auto_trigger: ReviewAutoTrigger | null;
+  visibility_checklist: Record<string, boolean> | null;
   // ────────────────────────────────────────────────────────────────────────
   created_at: string;
 }
@@ -237,6 +241,39 @@ export interface CreateEstimateData {
   validity_days?: number;
   items?: Omit<EstimateItem, "id" | "estimate_id" | "created_at">[];
 }
+
+// ── Commercial module ─────────────────────────────────────────────────────────
+
+export type ReviewAutoTrigger = "none" | "job_close" | "invoice_paid" | "both";
+
+export interface ProjectShowcase {
+  id: string;
+  business_id: string;
+  job_id: string | null;
+  title: string;
+  description: string | null;
+  before_url: string | null;
+  after_url: string | null;
+  tags: string[];
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+  job?: { title: string } | null;
+}
+
+export interface ReviewRequest {
+  id: string;
+  business_id: string;
+  client_id: string | null;
+  estimate_id: string | null;
+  channel: "whatsapp" | "sms" | "email";
+  sent_at: string;
+  clicked_at: string | null;
+  obtained_at: string | null;
+  client?: { full_name: string; phone: string | null } | null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface CreateClientData {
   full_name: string;
