@@ -143,7 +143,18 @@ export interface EstimateItem {
   discount: number;
   sort_order: number;
   is_section: boolean;
+  item_type: "service" | "product" | null;
   created_at: string;
+}
+
+export type CatalogItemType = "service" | "product" | "pack";
+
+export interface PackItem {
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  item_type: "service" | "product";
 }
 
 export interface LibraryItem {
@@ -154,6 +165,8 @@ export interface LibraryItem {
   unit_price: number;
   category: string | null;
   usage_count: number;
+  type: CatalogItemType;
+  pack_items: PackItem[] | null;
   created_at: string;
   updated_at: string;
 }

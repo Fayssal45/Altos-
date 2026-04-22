@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="g1" x1="4" y1="4" x2="40" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#2DD4BF"/>
+      <stop offset="55%"  stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#4338CA"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="96" y1="96" x2="60" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FB923C"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+    <clipPath id="c1">
+      <polygon points="4,4 60,4 60,40 40,40 40,60 4,60"/>
+    </clipPath>
+    <clipPath id="c2">
+      <polygon points="96,96 40,96 40,60 60,60 60,40 96,40"/>
+    </clipPath>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="11" fill="url(#g1)" clip-path="url(#c1)"/>
+  <rect x="40" y="40" width="56" height="56" rx="11" fill="url(#g2)" clip-path="url(#c2)"/>
+</svg>

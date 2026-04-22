@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" fill="none">
+  <defs>
+    <linearGradient id="fg1" x1="55" y1="10" x2="85" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#2DD4BF"/>
+      <stop offset="55%"  stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#4338CA"/>
+    </linearGradient>
+    <linearGradient id="fg2" x1="145" y1="90" x2="115" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FB923C"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+    <clipPath id="fc1">
+      <polygon points="55,10 145,10 145,57 110,57 110,95 55,95"/>
+    </clipPath>
+    <clipPath id="fc2">
+      <polygon points="145,95 55,95 55,48 90,48 90,10 145,10"/>
+    </clipPath>
+  </defs>
+  <!-- Symbol centered, ~90×85 area -->
+  <rect x="55" y="10" width="70" height="70" rx="13" fill="url(#fg1)" clip-path="url(#fc1)"/>
+  <rect x="75" y="35" width="70" height="70" rx="13" fill="url(#fg2)" clip-path="url(#fc2)"/>
+  <!-- ALTOS -->
+  <text x="100" y="126"
+    text-anchor="middle"
+    font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+    font-weight="900"
+    font-size="34"
+    letter-spacing="1"
+    fill="#1E293B">ALTOS</text>
+  <!-- Tagline -->
+  <text x="100" y="143"
+    text-anchor="middle"
+    font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+    font-weight="400"
+    font-size="11"
+    letter-spacing="0.3"
+    fill="#64748B">votre assistant terrain</text>
+</svg>

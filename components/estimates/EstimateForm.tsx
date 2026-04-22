@@ -11,6 +11,7 @@ import {
   Eye, Phone, Mail, Building2, Image, Video, Upload,
   ChevronDown, ChevronUp, CheckCircle2, Circle, Zap,
   Tag, FileText, Camera, Copy, BookUser,
+  Wrench, Package, Layers,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 // generateEstimatePdfBlob is dynamically imported on demand (see handleShareSend)
@@ -39,6 +40,7 @@ interface LineItem {
   discount: number;
   is_section: boolean;
   sort_order: number;
+  item_type: "service" | "product" | null;
 }
 
 interface AttachmentItem {
@@ -60,6 +62,7 @@ const newLine = (sort_order: number): LineItem => ({
   discount: 0,
   is_section: false,
   sort_order,
+  item_type: null,
 });
 
 // ─── Collapsible section wrapper ─────────────────────────────────────────────
@@ -122,8 +125,18 @@ export default function EstimateForm({
 
   // Lignes
   const [lines, setLines] = useState<LineItem[]>(
-    estimate?.items?.map((item: EstimateItem) => ({ ...item, id: item.id })) || [newLine(0)]
+    estimate?.items?.map((item: EstimateItem) => ({
+      ...item,
+      id: item.id,
+      item_type: item.item_type ?? null,
+    })) || [newLine(0)]
   );
+
+  // Catalogue picker
+  const [showCatPicker, setShowCatPicker] = useState(false);
+  const [catPickerTab, setCatPickerTab] = useState<"service" | "product" | "pack">("service");
+  const [catSearch, setCatSearch] = useState("");
+  const [catalogueItems, setCatalogueItems] = useState<LibraryItem[]>([]);
 
   // Pièces jointes
   const [attachments, setAttachments] = useState<AttachmentItem[]>(
@@ -167,6 +180,76 @@ export default function EstimateForm({
       .limit(5);
     setSuggestions(data || []);
   }, [business?.id]);
+
+  const fetchCatalogueItems = useCallback(async (tab: "service" | "product" | "pack", search: string) => {
+    if (!business?.id) return;
+    let query = supabase
+      .from("library_items")
+      .select("*")
+      .eq("business_id", business.id)
+      .eq("type", tab)
+      .order("usage_count", { ascending: false })
+      .limit(50);
+    if (search.length >= 2) query = query.ilike("description", `%${search}%`);
+    const { data } = await query;
+    setCatalogueItems(data || []);
+  }, [business?.id]);
+
+  const openCatPicker = () => {
+    setShowCatPicker(true);
+    setCatSearch("");
+    fetchCatalogueItems(catPickerTab, "");
+  };
+
+  const addFromCatalogueItem = (item: LibraryItem) => {
+    if (item.type === "pack" && item.pack_items && item.pack_items.length > 0) {
+      // Add section header + one line per pack sub-item
+      const sectionId = crypto.randomUUID();
+      const newItems: LineItem[] = [
+        {
+          id: sectionId,
+          description: item.description,
+          quantity: 1,
+          unit: item.unit,
+          unit_price: 0,
+          discount: 0,
+          is_section: true,
+          sort_order: lines.length,
+          item_type: null,
+        },
+        ...item.pack_items.map((pi, i) => ({
+          id: crypto.randomUUID(),
+          description: pi.description,
+          quantity: pi.quantity,
+          unit: pi.unit,
+          unit_price: pi.unit_price,
+          discount: 0,
+          is_section: false,
+          sort_order: lines.length + 1 + i,
+          item_type: pi.item_type as "service" | "product",
+        })),
+      ];
+      setLines((prev) => [...prev, ...newItems]);
+    } else {
+      const lineId = crypto.randomUUID();
+      setLines((prev) => [
+        ...prev,
+        {
+          id: lineId,
+          description: item.description,
+          quantity: 1,
+          unit: item.unit,
+          unit_price: item.unit_price,
+          discount: 0,
+          is_section: false,
+          sort_order: prev.length,
+          item_type: item.type === "service" || item.type === "product" ? item.type : null,
+        },
+      ]);
+    }
+    supabase.from("library_items").update({ usage_count: item.usage_count + 1 }).eq("id", item.id);
+    setShowCatPicker(false);
+  };
 
   const handleLineDescriptionChange = (id: string, value: string) => {
     setLines((prev) => prev.map((l) => l.id === id ? { ...l, description: value } : l));
@@ -214,6 +297,7 @@ export default function EstimateForm({
         discount: 0,
         is_section: false,
         sort_order: prev.length,
+        item_type: null,
       },
     ]);
     // Focus price field for the new line
@@ -343,6 +427,7 @@ export default function EstimateForm({
           discount: line.discount,
           sort_order: i,
           is_section: line.is_section,
+          item_type: line.item_type ?? null,
         }));
         const { error: itemsError } = await supabase.from("estimate_items").insert(items);
         if (itemsError) throw itemsError;
@@ -417,6 +502,7 @@ export default function EstimateForm({
         discount: line.discount,
         sort_order: i,
         is_section: line.is_section,
+        item_type: line.item_type ?? null,
       }));
       await supabase.from("estimate_items").insert(items);
       toast.success("Devis dupliqué !");
@@ -626,13 +712,20 @@ export default function EstimateForm({
               ))}
             </div>
 
-            <div className="px-4 py-3 border-t border-slate-50">
+            <div className="px-4 py-3 border-t border-slate-50 flex gap-2">
               <button
                 onClick={() => addLine(false)}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-50 text-blue-600 font-bold text-sm active:bg-blue-100 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-50 text-blue-600 font-bold text-sm active:bg-blue-100 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Ajouter une ligne
+              </button>
+              <button
+                onClick={openCatPicker}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm active:bg-slate-200 transition-colors flex-shrink-0"
+              >
+                <Layers className="w-4 h-4" />
+                Catalogue
               </button>
             </div>
           </section>
@@ -641,6 +734,7 @@ export default function EstimateForm({
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="px-4 pt-4 pb-3 space-y-2.5">
 
+              <TypeTotals lines={lines} />
               <SectionTotals lines={lines} />
 
               <div className="flex justify-between text-sm">
@@ -835,6 +929,19 @@ export default function EstimateForm({
         </div>
       )}
 
+      {/* ── CATALOGUE PICKER ── */}
+      {showCatPicker && (
+        <CataloguePicker
+          tab={catPickerTab}
+          search={catSearch}
+          items={catalogueItems}
+          onTabChange={(t) => { setCatPickerTab(t); fetchCatalogueItems(t, catSearch); }}
+          onSearchChange={(s) => { setCatSearch(s); fetchCatalogueItems(catPickerTab, s); }}
+          onSelect={addFromCatalogueItem}
+          onClose={() => setShowCatPicker(false)}
+        />
+      )}
+
       {/* ── APERÇU ── */}
       {showPreview && (
         <EstimatePreview
@@ -910,8 +1017,14 @@ function LineRow({
     );
   }
 
+  const borderColor = line.item_type === "service"
+    ? "border-l-amber-400"
+    : line.item_type === "product"
+    ? "border-l-blue-400"
+    : "border-l-transparent";
+
   return (
-    <div className="px-4 py-3 relative">
+    <div className={cn("px-4 py-3 relative border-l-4", borderColor)}>
       {/* Row 1: description */}
       <div className="relative mb-2">
         <input
@@ -944,6 +1057,34 @@ function LineRow({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Type badge row */}
+      <div className="flex items-center gap-1.5 mb-2">
+        <button
+          onClick={() => onUpdate(line.id, "item_type", line.item_type === "service" ? null : "service")}
+          className={cn(
+            "flex items-center gap-1 text-[10px] font-bold rounded-lg px-2 py-1 transition-colors",
+            line.item_type === "service"
+              ? "bg-amber-100 text-amber-700"
+              : "bg-slate-100 text-slate-400"
+          )}
+        >
+          <Wrench className="w-2.5 h-2.5" />
+          M.O.
+        </button>
+        <button
+          onClick={() => onUpdate(line.id, "item_type", line.item_type === "product" ? null : "product")}
+          className={cn(
+            "flex items-center gap-1 text-[10px] font-bold rounded-lg px-2 py-1 transition-colors",
+            line.item_type === "product"
+              ? "bg-blue-100 text-blue-700"
+              : "bg-slate-100 text-slate-400"
+          )}
+        >
+          <Package className="w-2.5 h-2.5" />
+          MAT.
+        </button>
       </div>
 
       {/* Row 2: qty × price = total + toggle details */}
@@ -1075,6 +1216,40 @@ function SectionTotals({ lines }: { lines: LineItem[] }) {
   );
 }
 
+// ─── Sous-totaux MO / MAT ─────────────────────────────────────────────────────
+function TypeTotals({ lines }: { lines: LineItem[] }) {
+  const realLines = lines.filter((l) => !l.is_section);
+  const moTotal = realLines
+    .filter((l) => l.item_type === "service")
+    .reduce((s, l) => s + l.quantity * l.unit_price * (1 - l.discount / 100), 0);
+  const matTotal = realLines
+    .filter((l) => l.item_type === "product")
+    .reduce((s, l) => s + l.quantity * l.unit_price * (1 - l.discount / 100), 0);
+  if (moTotal === 0 && matTotal === 0) return null;
+  return (
+    <div className="flex gap-2 mb-1">
+      {moTotal > 0 && (
+        <div className="flex-1 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+          <div className="flex items-center gap-1 mb-0.5">
+            <Wrench className="w-3 h-3 text-amber-600" />
+            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Main d&apos;œuvre</span>
+          </div>
+          <span className="text-sm font-black text-amber-800 tabular-nums">{formatCurrency(moTotal)}</span>
+        </div>
+      )}
+      {matTotal > 0 && (
+        <div className="flex-1 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+          <div className="flex items-center gap-1 mb-0.5">
+            <Package className="w-3 h-3 text-blue-600" />
+            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">Matériaux</span>
+          </div>
+          <span className="text-sm font-black text-blue-800 tabular-nums">{formatCurrency(matTotal)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Section pièces jointes ───────────────────────────────────────────────────
 function AttachmentSection({
   attachments, uploading, fileInputRef, onFileSelect, onRemove,
@@ -1148,6 +1323,126 @@ function AttachmentSection({
         </>
       )}
       {!canAdd && <p className="text-center text-sm text-slate-400 py-2">Limite de {MAX_ATTACHMENTS} fichiers atteinte</p>}
+    </div>
+  );
+}
+
+// ─── Catalogue Picker ────────────────────────────────────────────────────────
+const CAT_TABS: { key: "service" | "product" | "pack"; label: string; icon: React.ReactNode; color: string }[] = [
+  { key: "service", label: "Prestations", icon: <Wrench className="w-4 h-4" />, color: "text-amber-600 border-amber-500 bg-amber-50" },
+  { key: "product", label: "Produits", icon: <Package className="w-4 h-4" />, color: "text-blue-600 border-blue-500 bg-blue-50" },
+  { key: "pack", label: "Packs", icon: <Layers className="w-4 h-4" />, color: "text-violet-600 border-violet-500 bg-violet-50" },
+];
+
+function CataloguePicker({
+  tab, search, items, onTabChange, onSearchChange, onSelect, onClose,
+}: {
+  tab: "service" | "product" | "pack";
+  search: string;
+  items: LibraryItem[];
+  onTabChange: (t: "service" | "product" | "pack") => void;
+  onSearchChange: (s: string) => void;
+  onSelect: (item: LibraryItem) => void;
+  onClose: () => void;
+}) {
+  const activeTab = CAT_TABS.find((t) => t.key === tab)!;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-white animate-slide-up">
+      {/* Header */}
+      <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center"
+          >
+            <X className="w-4 h-4 text-slate-600" />
+          </button>
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              autoFocus
+              placeholder="Rechercher dans le catalogue…"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-base focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+        {/* Tabs */}
+        <div className="flex gap-2 mt-3">
+          {CAT_TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => onTabChange(t.key)}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold border-2 transition-colors",
+                tab === t.key ? t.color : "text-slate-400 border-slate-100 bg-white"
+              )}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Items list */}
+      <div className="flex-1 overflow-y-auto divide-y divide-slate-50 px-4 py-2">
+        {items.length === 0 && (
+          <div className="py-16 flex flex-col items-center gap-2 text-slate-400">
+            {activeTab.icon}
+            <p className="text-sm font-medium">Aucune {activeTab.label.toLowerCase()} dans le catalogue</p>
+            <p className="text-xs">Ajoutez-en depuis le Catalogue</p>
+          </div>
+        )}
+        {items.map((item) => {
+          const isPack = item.type === "pack";
+          const packTotal = isPack && item.pack_items
+            ? item.pack_items.reduce((s, pi) => s + pi.quantity * pi.unit_price, 0)
+            : null;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onSelect(item)}
+              className="w-full flex items-start gap-3 py-3.5 text-left active:bg-slate-50"
+            >
+              <div className={cn(
+                "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0",
+                item.type === "service" ? "bg-amber-100" : item.type === "product" ? "bg-blue-100" : "bg-violet-100"
+              )}>
+                {item.type === "service"
+                  ? <Wrench className="w-4 h-4 text-amber-600" />
+                  : item.type === "product"
+                  ? <Package className="w-4 h-4 text-blue-600" />
+                  : <Layers className="w-4 h-4 text-violet-600" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900 truncate">{item.description}</p>
+                {isPack && item.pack_items && item.pack_items.length > 0 && (
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {item.pack_items.length} élément{item.pack_items.length > 1 ? "s" : ""}
+                    {item.pack_items.map((pi) => pi.description).slice(0, 2).join(", ").length > 0
+                      ? ` · ${item.pack_items.map((pi) => pi.description).slice(0, 2).join(", ")}${item.pack_items.length > 2 ? "…" : ""}`
+                      : ""}
+                  </p>
+                )}
+                {item.category && (
+                  <span className="text-[10px] text-slate-400 font-medium">{item.category}</span>
+                )}
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-black text-slate-900 tabular-nums">
+                  {formatCurrency(packTotal !== null ? packTotal : item.unit_price)}
+                </p>
+                {!isPack && (
+                  <p className="text-[10px] text-slate-400">/{item.unit}</p>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

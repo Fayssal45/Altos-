@@ -22,7 +22,6 @@ import OfflineBanner from "@/components/ui/OfflineBanner";
 
 type NavItem = { href: string; icon: React.ElementType; label: string };
 
-// ── TERRAIN ──────────────────────────────────────────────────────────────────
 const TERRAIN_LEFT: NavItem[]  = [
   { href: "/terrain",  icon: Home,     label: "Accueil"  },
   { href: "/clients",  icon: Users,    label: "Clients"  },
@@ -32,7 +31,6 @@ const TERRAIN_RIGHT: NavItem[] = [
   { href: "/devis",    icon: FileText, label: "Devis"    },
 ];
 
-// ── ADMIN ────────────────────────────────────────────────────────────────────
 const ADMIN_LEFT: NavItem[] = [
   { href: "/terrain",  icon: Home,       label: "Accueil"  },
   { href: "/devis",    icon: FileText,   label: "Devis"    },
@@ -42,17 +40,15 @@ const ADMIN_RIGHT: NavItem[] = [
   { href: "/revenus",  icon: TrendingUp, label: "Finances" },
 ];
 
-// ── COMMERCIAL ───────────────────────────────────────────────────────────────
 const COMMERCIAL_LEFT: NavItem[] = [
-  { href: "/commercial",                  icon: Home,           label: "Accueil"   },
-  { href: "/commercial/chantiers",        icon: Camera,         label: "Avant/Après"},
+  { href: "/commercial",                 icon: Home,          label: "Accueil"    },
+  { href: "/commercial/chantiers",       icon: Camera,        label: "Avant/Après" },
 ];
 const COMMERCIAL_RIGHT: NavItem[] = [
-  { href: "/commercial/relances-clarte",  icon: MessageCircle,  label: "Relances"  },
-  { href: "/commercial/reputation",       icon: Star,           label: "Avis"      },
+  { href: "/commercial/relances-clarte", icon: MessageCircle, label: "Relances"   },
+  { href: "/commercial/reputation",      icon: Star,          label: "Avis"       },
 ];
 
-// All tab roots — kept mounted after first visit (SPA cache)
 const ALL_TAB_PATHS = [
   "/terrain", "/planning", "/devis", "/clients", "/revenus",
   "/commercial",
@@ -70,52 +66,43 @@ type FabAction = {
 };
 
 const TERRAIN_FAB: FabAction[] = [
-  { label: "Intervention rapide",   icon: Zap,       color: "bg-amber-500",   shadow: "shadow-amber-500/40",   href: "/interventions/nouveau" },
-  { label: "Devis rapide",          icon: FileText,  color: "bg-blue-600",    shadow: "shadow-blue-600/40",    href: "/devis/nouveau"         },
-  { label: "Catalogue prestations", icon: BookOpen,  color: "bg-violet-600",  shadow: "shadow-violet-600/40",  href: "/catalogue"             },
-  { label: "Prendre une photo",     icon: Camera,    color: "bg-pink-500",    shadow: "shadow-pink-500/40",    action: "camera"               },
+  { label: "Intervention rapide",   icon: Zap,      color: "bg-amber-500",  shadow: "shadow-amber-500/40",  href: "/interventions/nouveau" },
+  { label: "Devis rapide",          icon: FileText, color: "bg-blue-600",   shadow: "shadow-blue-600/40",   href: "/devis/nouveau"         },
+  { label: "Catalogue prestations", icon: BookOpen, color: "bg-violet-600", shadow: "shadow-violet-600/40", href: "/catalogue"             },
+  { label: "Prendre une photo",     icon: Camera,   color: "bg-pink-500",   shadow: "shadow-pink-500/40",   action: "camera"               },
 ];
 
 const ADMIN_FAB: FabAction[] = [
-  { label: "Nouveau Devis",    icon: FileText,  color: "bg-blue-600",    shadow: "shadow-blue-600/40",    href: "/devis/nouveau"    },
-  { label: "Nouveau Client",   icon: Users,     color: "bg-emerald-600", shadow: "shadow-emerald-600/40", href: "/clients/nouveau"  },
-  { label: "Relances",         icon: Bell,      color: "bg-orange-500",  shadow: "shadow-orange-500/40",  href: "/relances"         },
-  { label: "Mes documents",    icon: ScanLine,  color: "bg-slate-700",   shadow: "shadow-slate-700/40",   href: "/documents"        },
+  { label: "Nouveau Devis",  icon: FileText, color: "bg-blue-600",    shadow: "shadow-blue-600/40",    href: "/devis/nouveau"   },
+  { label: "Nouveau Client", icon: Users,    color: "bg-emerald-600", shadow: "shadow-emerald-600/40", href: "/clients/nouveau" },
+  { label: "Relances",       icon: Bell,     color: "bg-orange-500",  shadow: "shadow-orange-500/40",  href: "/relances"        },
+  { label: "Mes documents",  icon: ScanLine, color: "bg-slate-700",   shadow: "shadow-slate-700/40",   href: "/documents"       },
 ];
 
 const COMMERCIAL_FAB: FabAction[] = [
-  { label: "Nouveau chantier",   icon: Camera,         color: "bg-pink-600",   shadow: "shadow-pink-600/40",   href: "/commercial/chantiers"       },
-  { label: "Demander un avis",   icon: Star,           color: "bg-amber-500",  shadow: "shadow-amber-500/40",  href: "/commercial/reputation"      },
-  { label: "Envoyer campagne",   icon: MessageCircle,  color: "bg-orange-500", shadow: "shadow-orange-500/40", href: "/commercial/relances-clarte" },
-  { label: "Radar visibilité",   icon: Eye,            color: "bg-violet-600", shadow: "shadow-violet-600/40", href: "/commercial/radar"           },
+  { label: "Nouveau chantier",  icon: Camera,        color: "bg-pink-600",   shadow: "shadow-pink-600/40",   href: "/commercial/chantiers"       },
+  { label: "Demander un avis",  icon: Star,          color: "bg-amber-500",  shadow: "shadow-amber-500/40",  href: "/commercial/reputation"      },
+  { label: "Envoyer campagne",  icon: MessageCircle, color: "bg-orange-500", shadow: "shadow-orange-500/40", href: "/commercial/relances-clarte" },
+  { label: "Radar visibilité",  icon: Eye,           color: "bg-violet-600", shadow: "shadow-violet-600/40", href: "/commercial/radar"           },
 ];
 
 // ─── Mode config ──────────────────────────────────────────────────────────────
 
 const MODE_CONFIG = {
   terrain: {
-    label: "Terrain",
-    icon: Zap,
-    color: "text-amber-600",
-    bg: "bg-amber-600",
+    label: "Terrain", icon: Zap, color: "text-amber-600", bg: "bg-amber-600",
     fabColor: "bg-blue-600 shadow-blue-600/40",
     left: TERRAIN_LEFT, right: TERRAIN_RIGHT, fab: TERRAIN_FAB,
     homeHref: "/terrain",
   },
   admin: {
-    label: "Admin",
-    icon: BarChart2,
-    color: "text-blue-600",
-    bg: "bg-blue-600",
+    label: "Admin", icon: BarChart2, color: "text-blue-600", bg: "bg-blue-600",
     fabColor: "bg-blue-600 shadow-blue-600/40",
     left: ADMIN_LEFT, right: ADMIN_RIGHT, fab: ADMIN_FAB,
     homeHref: "/terrain",
   },
   commercial: {
-    label: "Commercial",
-    icon: TrendingUp,
-    color: "text-violet-600",
-    bg: "bg-violet-600",
+    label: "Commercial", icon: TrendingUp, color: "text-violet-600", bg: "bg-violet-600",
     fabColor: "bg-violet-600 shadow-violet-600/40",
     left: COMMERCIAL_LEFT, right: COMMERCIAL_RIGHT, fab: COMMERCIAL_FAB,
     homeHref: "/commercial",
@@ -135,10 +122,10 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
   const pathname = usePathname();
   const router   = useRouter();
 
-  const [fabOpen, setFabOpen]         = useState(false);
+  const [fabOpen, setFabOpen]             = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [notifOpen, setNotifOpen]     = useState(false);
-  const [modeAnim, setModeAnim]       = useState<"right" | "left" | null>(null);
+  const [notifOpen, setNotifOpen]         = useState(false);
+  const [modeAnim, setModeAnim]           = useState<"right" | "left" | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const { mode, switchMode, hydrated } = useAppMode();
@@ -161,7 +148,6 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
 
   const { data: notifications } = useNotifications(business?.id);
 
-  // Prefetch all primary routes on mount
   useEffect(() => {
     [
       "/terrain", "/dashboard", "/planning", "/devis", "/clients",
@@ -176,7 +162,6 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
 
   const handleSwitchMode = (newMode: AppMode) => {
     if (newMode === mode) return;
-    // Determine animation direction
     const from = MODE_ORDER.indexOf(mode);
     const to   = MODE_ORDER.indexOf(newMode);
     setModeAnim(to > from ? "right" : "left");
@@ -188,7 +173,6 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
     const isOnTerrainOnly = ["/planning", "/catalogue"].includes(pathname);
 
     if (newMode === "commercial") {
-      // Always navigate to commercial hub when switching to commercial
       router.push("/commercial");
     } else if (newMode === "terrain") {
       if (isOnCommercial || isOnAdminOnly) router.push("/terrain");
@@ -212,74 +196,44 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
     else                               router.push("/chantiers");
   };
 
+  const handleFabAction = (fab: FabAction) => {
+    if (fab.action === "camera") {
+      cameraInputRef.current?.click();
+    } else if (fab.href) {
+      router.push(fab.href);
+      setFabOpen(false);
+    }
+  };
+
+  const allNavItems = [...navLeft, ...navRight];
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full max-w-lg mx-auto bg-slate-50">
-      <OfflineBanner />
+    <div className="flex h-full bg-slate-50">
 
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* HEADER — 2 rows                                                       */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-100 shadow-sm">
+      {/* ══════════════════════════════════════════════════════════════════════
+          DESKTOP SIDEBAR (lg+)
+          ══════════════════════════════════════════════════════════════════════ */}
+      <aside className="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-100 z-40 overflow-y-auto">
 
-        {/* ── Row 1: Logo · Business name · Notifications · Avatar ─────────── */}
-        <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
-          <Link
-            href={cfg.homeHref}
-            className="flex items-center gap-2 flex-1 min-w-0"
-          >
+        {/* Logo */}
+        <div className="px-5 py-4 border-b border-slate-100">
+          <Link href={cfg.homeHref} className="flex items-center gap-3">
             {business?.logo_url ? (
-              <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
+              <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-100 flex-shrink-0">
                 <img src={business.logo_url} alt={business.name} className="w-full h-full object-contain" />
               </div>
             ) : (
-              <Image
-                src="/logo.svg"
-                alt="Altos"
-                width={90}
-                height={32}
-                className="h-7 w-auto flex-shrink-0"
-                priority
-              />
+              <Image src="/logo-icon.svg" alt="Altos" width={32} height={32} className="w-8 h-8 flex-shrink-0" />
             )}
-            {business?.name && (
-              <span className="text-sm font-bold text-slate-700 truncate leading-none">
-                {business.name}
-              </span>
-            )}
+            <span className="font-black text-slate-900 text-lg tracking-tight">
+              {business?.name || "Altos"}
+            </span>
           </Link>
-
-          {/* Right icons */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              onClick={() => setNotifOpen(true)}
-              className="relative w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center active:bg-slate-200"
-              aria-label="Notifications"
-            >
-              <Bell className="w-4 h-4 text-slate-600" />
-              {notifTotal > 0 && (
-                <span className={cn(
-                  "absolute -top-0.5 -right-0.5 min-w-[15px] h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white px-1",
-                  urgentCount > 0 ? "bg-red-500" : "bg-blue-500"
-                )}>
-                  {notifTotal > 9 ? "9+" : notifTotal}
-                </span>
-              )}
-            </button>
-            <Link
-              href="/profil"
-              className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs flex-shrink-0"
-              aria-label="Mon profil"
-            >
-              {initial}
-            </Link>
-          </div>
         </div>
 
-        {/* ── Row 2: Mode switcher (3 tabs) ────────────────────────────────── */}
-        <div className={cn(
-          "px-3 pb-2.5 transition-opacity",
-          !hydrated && "opacity-0 pointer-events-none"
-        )}>
+        {/* Mode switcher */}
+        <div className={cn("px-3 py-3 border-b border-slate-100 transition-opacity", !hydrated && "opacity-0 pointer-events-none")}>
           <div className="flex bg-slate-100 rounded-xl p-1 gap-0.5">
             {(["terrain", "admin", "commercial"] as const).map((m) => {
               const mcfg  = MODE_CONFIG[m];
@@ -290,72 +244,223 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
                   key={m}
                   onClick={() => handleSwitchMode(m)}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[12px] font-bold transition-all duration-150",
-                    active
-                      ? cn("bg-white shadow-sm", mcfg.color)
-                      : "text-slate-400 active:text-slate-600"
+                    "flex items-center justify-center gap-1 flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150",
+                    active ? cn("bg-white shadow-sm", mcfg.color) : "text-slate-400 hover:text-slate-600"
                   )}
                 >
-                  <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <Icon className="w-3 h-3 flex-shrink-0" />
                   <span className="truncate">{mcfg.label}</span>
                 </button>
               );
             })}
           </div>
         </div>
-      </header>
 
-      {/* ── Main content — SPA tab cache ────────────────────────────────────── */}
-      <main className={cn(
-        "flex-1 relative overflow-hidden",
-        modeAnim === "right" && "animate-mode-right",
-        modeAnim === "left"  && "animate-mode-left",
-      )}>
-        {Object.entries(tabCache).map(([path, content]) => (
-          <div
-            key={path}
-            className={`absolute inset-0 overflow-y-auto pb-24 ${path === pathname ? "" : "hidden"}`}
-            aria-hidden={path !== pathname}
-          >
-            {content}
-          </div>
-        ))}
-        {(!isTabPath || !tabCache[pathname]) && (
-          <div className="absolute inset-0 overflow-y-auto pb-24">
-            {children}
-          </div>
-        )}
-      </main>
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5">
+          {allNavItems.map((item) => (
+            <SidebarNavItem
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              mode={mode}
+              relancesCount={relancesCount}
+            />
+          ))}
+        </nav>
 
-      {/* ── FAB backdrop ─────────────────────────────────────────────────────── */}
-      {fabOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setFabOpen(false)} />
-      )}
-
-      {/* ── FAB actions ──────────────────────────────────────────────────────── */}
-      {fabOpen && (
-        <div className="fixed bottom-[88px] right-4 z-50 flex flex-col gap-2.5 items-end">
+        {/* Quick actions */}
+        <div className="px-3 py-3 border-t border-slate-100 flex flex-col gap-1">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 mb-1">Actions rapides</p>
           {fabActions.map((fab, i) => (
             <button
               key={i}
-              onClick={() => {
-                if (fab.action === "camera") {
-                  cameraInputRef.current?.click();
-                } else if (fab.href) {
-                  router.push(fab.href);
-                  setFabOpen(false);
-                }
-              }}
+              onClick={() => handleFabAction(fab)}
+              className="flex items-center gap-3 w-full px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 active:bg-slate-100 transition-colors text-sm font-medium text-left"
+            >
+              <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0", fab.color)}>
+                <fab.icon className="w-3.5 h-3.5 text-white" />
+              </div>
+              {fab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* User / notif */}
+        <div className="px-3 py-3 border-t border-slate-100 flex items-center gap-2">
+          <button
+            onClick={() => setNotifOpen(true)}
+            className="relative w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+          >
+            <Bell className="w-4 h-4 text-slate-600" />
+            {notifTotal > 0 && (
+              <span className={cn(
+                "absolute -top-0.5 -right-0.5 min-w-[15px] h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white px-1",
+                urgentCount > 0 ? "bg-red-500" : "bg-blue-500"
+              )}>
+                {notifTotal > 9 ? "9+" : notifTotal}
+              </span>
+            )}
+          </button>
+          <Link
+            href="/profil/entreprise"
+            className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+            title="Paramètres"
+          >
+            <Settings className="w-4 h-4 text-slate-600" />
+          </Link>
+          <Link
+            href="/profil"
+            className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs hover:bg-blue-700 transition-colors ml-auto"
+          >
+            {initial}
+          </Link>
+        </div>
+      </aside>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          MAIN COLUMN
+          ══════════════════════════════════════════════════════════════════════ */}
+      <div className="flex flex-col h-full flex-1 min-w-0 lg:pl-64">
+        <OfflineBanner />
+
+        {/* ── Mobile / Tablet Header ──────────────────────────────────────── */}
+        <header className="lg:hidden sticky top-0 z-40 bg-white border-b border-slate-100 shadow-sm">
+
+          {/* Row 1: Logo · Business name · Notifications · Avatar */}
+          <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
+            <Link href={cfg.homeHref} className="flex items-center gap-2 flex-1 min-w-0">
+              {business?.logo_url ? (
+                <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
+                  <img src={business.logo_url} alt={business.name} className="w-full h-full object-contain" />
+                </div>
+              ) : (
+                <Image src="/logo-icon.svg" alt="Altos" width={32} height={32} className="w-8 h-8 flex-shrink-0" priority />
+              )}
+              {business?.name && (
+                <span className="text-sm font-bold text-slate-700 truncate leading-none">
+                  {business.name}
+                </span>
+              )}
+            </Link>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => setNotifOpen(true)}
+                className="relative w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center active:bg-slate-200"
+              >
+                <Bell className="w-4 h-4 text-slate-600" />
+                {notifTotal > 0 && (
+                  <span className={cn(
+                    "absolute -top-0.5 -right-0.5 min-w-[15px] h-3.5 rounded-full flex items-center justify-center text-[8px] font-black text-white px-1",
+                    urgentCount > 0 ? "bg-red-500" : "bg-blue-500"
+                  )}>
+                    {notifTotal > 9 ? "9+" : notifTotal}
+                  </span>
+                )}
+              </button>
+              <Link href="/profil" className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs flex-shrink-0">
+                {initial}
+              </Link>
+            </div>
+          </div>
+
+          {/* Row 2: Mode switcher */}
+          <div className={cn("px-3 pb-2.5 transition-opacity", !hydrated && "opacity-0 pointer-events-none")}>
+            <div className="flex bg-slate-100 rounded-xl p-1 gap-0.5">
+              {(["terrain", "admin", "commercial"] as const).map((m) => {
+                const mcfg  = MODE_CONFIG[m];
+                const Icon  = mcfg.icon;
+                const active = mode === m;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => handleSwitchMode(m)}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[12px] font-bold transition-all duration-150",
+                      active ? cn("bg-white shadow-sm", mcfg.color) : "text-slate-400 active:text-slate-600"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{mcfg.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </header>
+
+        {/* ── Main content — SPA tab cache ──────────────────────────────── */}
+        <main className={cn(
+          "flex-1 relative overflow-hidden",
+          modeAnim === "right" && "animate-mode-right",
+          modeAnim === "left"  && "animate-mode-left",
+        )}>
+          {Object.entries(tabCache).map(([path, content]) => (
+            <div
+              key={path}
+              className={cn(
+                "absolute inset-0 overflow-y-auto pb-24 lg:pb-8",
+                path !== pathname && "hidden"
+              )}
+              aria-hidden={path !== pathname}
+            >
+              <div className="lg:max-w-5xl lg:mx-auto min-h-full">
+                {content}
+              </div>
+            </div>
+          ))}
+          {(!isTabPath || !tabCache[pathname]) && (
+            <div className="absolute inset-0 overflow-y-auto pb-24 lg:pb-8">
+              <div className="lg:max-w-5xl lg:mx-auto min-h-full">
+                {children}
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* ── Mobile / Tablet Bottom nav ────────────────────────────────── */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-100 pb-safe shadow-lg shadow-black/5">
+          <div className="flex items-center px-1 py-1.5 max-w-lg mx-auto md:max-w-2xl">
+            {navLeft.map((item) => (
+              <NavTab key={item.href} item={item} pathname={pathname} relancesCount={relancesCount} mode={mode} />
+            ))}
+            {/* FAB */}
+            <button
+              onClick={() => setFabOpen(!fabOpen)}
+              className={cn(
+                "w-12 h-12 -mt-5 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-200 flex-shrink-0 mx-1",
+                fabOpen ? "bg-slate-800" : cn(cfg.bg, "shadow-lg")
+              )}
+              aria-label="Actions rapides"
+            >
+              <Plus className={cn("w-6 h-6 text-white transition-transform duration-200", fabOpen && "rotate-45")} />
+            </button>
+            {navRight.map((item) => (
+              <NavTab key={item.href} item={item} pathname={pathname} relancesCount={relancesCount} mode={mode} />
+            ))}
+          </div>
+        </nav>
+      </div>
+
+      {/* ── Mobile FAB backdrop (hidden on desktop) ──────────────────────────── */}
+      {fabOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setFabOpen(false)} />
+      )}
+
+      {/* ── Mobile FAB actions (hidden on desktop) ───────────────────────────── */}
+      {fabOpen && (
+        <div className="lg:hidden fixed bottom-[88px] right-4 z-50 flex flex-col gap-2.5 items-end">
+          {fabActions.map((fab, i) => (
+            <button
+              key={i}
+              onClick={() => handleFabAction(fab)}
               className="flex items-center gap-3 animate-slide-up"
               style={{ animationDelay: `${i * 40}ms` }}
             >
               <span className="bg-white rounded-2xl px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-lg border border-slate-100">
                 {fab.label}
               </span>
-              <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0",
-                fab.color, fab.shadow
-              )}>
+              <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0", fab.color, fab.shadow)}>
                 <fab.icon className="w-5 h-5 text-white" />
               </div>
             </button>
@@ -444,12 +549,11 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
       {notifOpen && (
         <>
           <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setNotifOpen(false)} />
-          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 flex-shrink-0" />
+          <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:max-h-[70vh]">
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 flex-shrink-0 lg:hidden" />
             <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
               <h2 className="text-base font-black text-slate-900">Notifications</h2>
-              <button onClick={() => setNotifOpen(false)}
-                className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+              <button onClick={() => setNotifOpen(false)} className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
                 <X className="w-4 h-4 text-slate-500" />
               </button>
             </div>
@@ -464,24 +568,9 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
                 </div>
               ) : (
                 <>
-                  <NotifSection
-                    icon={<AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
-                    label="Urgent" color="text-red-600"
-                    items={(notifications || []).filter((n) => n.category === "urgent")}
-                    onClose={() => setNotifOpen(false)}
-                  />
-                  <NotifSection
-                    icon={<Clock className="w-3.5 h-3.5 text-blue-500" />}
-                    label="Aujourd'hui" color="text-blue-600"
-                    items={(notifications || []).filter((n) => n.category === "today")}
-                    onClose={() => setNotifOpen(false)}
-                  />
-                  <NotifSection
-                    icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
-                    label="À traiter" color="text-emerald-600"
-                    items={(notifications || []).filter((n) => n.category === "admin")}
-                    onClose={() => setNotifOpen(false)}
-                  />
+                  <NotifSection icon={<AlertTriangle className="w-3.5 h-3.5 text-red-500" />}    label="Urgent"     color="text-red-600"     items={(notifications || []).filter((n) => n.category === "urgent")} onClose={() => setNotifOpen(false)} />
+                  <NotifSection icon={<Clock className="w-3.5 h-3.5 text-blue-500" />}           label="Aujourd'hui" color="text-blue-600"    items={(notifications || []).filter((n) => n.category === "today")}  onClose={() => setNotifOpen(false)} />
+                  <NotifSection icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />} label="À traiter"  color="text-emerald-600" items={(notifications || []).filter((n) => n.category === "admin")}  onClose={() => setNotifOpen(false)} />
                 </>
               )}
               <div className="h-4" />
@@ -489,36 +578,53 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
           </div>
         </>
       )}
-
-      {/* ── Bottom nav: 2 tabs | FAB | 2 tabs ───────────────────────────────── */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-40 bg-white border-t border-slate-100 pb-safe shadow-lg shadow-black/5">
-        <div className="flex items-center px-1 py-1.5">
-          {navLeft.map((item) => (
-            <NavTab key={item.href} item={item} pathname={pathname} relancesCount={relancesCount} mode={mode} />
-          ))}
-
-          {/* FAB — color follows mode */}
-          <button
-            onClick={() => setFabOpen(!fabOpen)}
-            className={cn(
-              "w-12 h-12 -mt-5 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-200 flex-shrink-0 mx-1",
-              fabOpen ? "bg-slate-800" : cn(cfg.bg, "shadow-lg")
-            )}
-            aria-label="Actions rapides"
-          >
-            <Plus className={cn("w-6 h-6 text-white transition-transform duration-200", fabOpen && "rotate-45")} />
-          </button>
-
-          {navRight.map((item) => (
-            <NavTab key={item.href} item={item} pathname={pathname} relancesCount={relancesCount} mode={mode} />
-          ))}
-        </div>
-      </nav>
     </div>
   );
 }
 
-// ─── NavTab ───────────────────────────────────────────────────────────────────
+// ─── SidebarNavItem (desktop) ─────────────────────────────────────────────────
+
+function SidebarNavItem({
+  item, pathname, mode, relancesCount,
+}: {
+  item: NavItem;
+  pathname: string;
+  mode: AppMode;
+  relancesCount: number;
+}) {
+  const isActive = (() => {
+    if (item.href === "/terrain" || item.href === "/commercial") return pathname === item.href;
+    if (item.href === "/dashboard") return pathname === "/dashboard" || pathname === "/";
+    return pathname === item.href || pathname.startsWith(item.href + "/");
+  })();
+
+  const badge = item.href === "/relances" && relancesCount > 0 ? relancesCount : 0;
+
+  const activeColor = mode === "terrain" ? "text-amber-600 bg-amber-50"
+    : mode === "commercial" ? "text-violet-600 bg-violet-50"
+    : "text-blue-600 bg-blue-50";
+
+  return (
+    <Link
+      href={item.href}
+      prefetch={true}
+      className={cn(
+        "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors",
+        isActive ? activeColor : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+      )}
+    >
+      <item.icon className={cn("w-4 h-4 flex-shrink-0", isActive ? "stroke-[2.5]" : "stroke-2")} />
+      {item.label}
+      {badge > 0 && (
+        <span className="ml-auto min-w-[18px] h-4.5 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+// ─── NavTab (mobile bottom nav) ───────────────────────────────────────────────
 
 function NavTab({
   item, pathname, relancesCount, mode,
@@ -529,10 +635,7 @@ function NavTab({
   mode: AppMode;
 }) {
   const isActive = (() => {
-    // Hub pages: exact match only (prevent /commercial/* from all lighting up hub)
-    if (item.href === "/terrain" || item.href === "/commercial") {
-      return pathname === item.href;
-    }
+    if (item.href === "/terrain" || item.href === "/commercial") return pathname === item.href;
     if (item.href === "/dashboard") return pathname === "/dashboard" || pathname === "/";
     return pathname === item.href || pathname.startsWith(item.href + "/");
   })();
@@ -588,7 +691,7 @@ function NotifSection({
             key={n.id}
             href={n.href}
             onClick={onClose}
-            className="flex items-start gap-3 bg-slate-50 rounded-xl px-3.5 py-3 active:bg-slate-100"
+            className="flex items-start gap-3 bg-slate-50 rounded-xl px-3.5 py-3 active:bg-slate-100 hover:bg-slate-100 transition-colors"
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-900 leading-snug">{n.title}</p>

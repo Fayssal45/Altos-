@@ -17,6 +17,16 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Altos",
   },
+  openGraph: {
+    title: "Altos – Gestion Artisan",
+    description: "Devis, factures et interventions pour artisans du bâtiment",
+    images: [{ url: "/logo-full.svg", width: 200, height: 150, alt: "Altos" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Altos – Gestion Artisan",
+    images: ["/logo-full.svg"],
+  },
 };
 
 export const viewport: Viewport = {
@@ -35,7 +45,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${geist.variable} h-full`}>
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/logo-icon.svg" />
         {/* Pre-connect to Supabase so DB queries start immediately */}
         <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
         <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />

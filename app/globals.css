@@ -26,10 +26,18 @@ body {
   font-size: 15px; /* baseline for outdoor readability */
 }
 
-/* ── Touch targets ───────────────────────────────────────────────────────────── */
-button, a, [role="button"] {
-  min-height: 44px;
-  min-width: 44px;
+/* ── Touch targets — only on touch devices ───────────────────────────────────── */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+@media (pointer: fine) {
+  button, a, [role="button"] {
+    min-height: unset;
+    min-width: unset;
+  }
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────────── */
@@ -37,6 +45,26 @@ button, a, [role="button"] {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Responsive base density ─────────────────────────────────────────────────── */
+
+/* Mobile: compact, outdoor-readable baseline */
+body { font-size: 15px; }
+
+/* Tablet (768px+): standard density */
+@media (min-width: 768px) {
+  body { font-size: 15px; }
+}
+
+/* Desktop (1024px+): tighter, more information-dense */
+@media (min-width: 1024px) {
+  body { font-size: 14px; }
+}
+
+/* ── Desktop sidebar scrollbar ───────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  ::-webkit-scrollbar { width: 6px; }
+}
 
 /* ── Safe area ───────────────────────────────────────────────────────────────── */
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }

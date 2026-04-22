@@ -141,11 +141,11 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <Image
-            src="/logo.svg"
+            src="/logo-full.svg"
             alt="Altos"
             width={200}
-            height={72}
-            className="h-14 w-auto"
+            height={150}
+            className="h-36 w-auto"
             priority
           />
         </div>
