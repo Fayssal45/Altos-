@@ -252,10 +252,10 @@ export default function EstimateList({ estimates: initialEstimates, businessName
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between">
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Devis</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="text-xl font-black text-slate-900">Devis</h1>
+          <p className="text-xs text-slate-500">
             {filtered.length} devis · {formatCurrency(totalTTC)} TTC
           </p>
         </div>
@@ -265,7 +265,7 @@ export default function EstimateList({ estimates: initialEstimates, businessName
       </div>
 
       {/* Search + filtre */}
-      <div className="px-4 pb-3 flex gap-2">
+      <div className="px-4 pb-2 flex gap-2">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -342,7 +342,7 @@ export default function EstimateList({ estimates: initialEstimates, businessName
       )}
 
       {/* Liste */}
-      <div className="flex-1 overflow-y-auto px-4 flex flex-col gap-2.5">
+      <div className="flex-1 overflow-y-auto px-3 flex flex-col gap-1.5">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
             <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
@@ -471,65 +471,59 @@ function EstimateCard({ estimate, onAction }: { estimate: Estimate; onAction: ()
   const client = estimate.client as any;
   const totalTTC = (estimate.total_amount_ht || 0) * (1 + (estimate.vat_rate || 20) / 100);
 
-  const statusColors: Record<string, string> = {
-    draft:    "bg-slate-100 border-slate-200",
-    sent:     "bg-blue-50 border-blue-100",
-    viewed:   "bg-amber-50 border-amber-100",
-    accepted: "bg-green-50 border-green-100",
-    declined: "bg-red-50 border-red-100",
-    paid:     "bg-emerald-50 border-emerald-100",
-    invoiced: "bg-purple-50 border-purple-100",
-    archived: "bg-gray-50 border-gray-100",
+  const dotColors: Record<string, string> = {
+    draft:    "bg-slate-300",
+    sent:     "bg-blue-500",
+    viewed:   "bg-amber-500",
+    accepted: "bg-emerald-500",
+    paid:     "bg-emerald-600",
+    declined: "bg-red-500",
+    invoiced: "bg-purple-500",
+    archived: "bg-gray-300",
   };
 
   return (
-    <div className={cn("bg-white rounded-2xl border shadow-sm", statusColors[estimate.status] || "border-slate-100")}>
-      <Link href={`/devis/${estimate.id}/edit`} className="block p-4">
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-slate-900 text-base leading-tight truncate">
+    <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex items-stretch">
+      <Link href={`/devis/${estimate.id}/edit`} className="flex items-center gap-3 flex-1 min-w-0 px-3 py-2.5">
+        {/* Status dot */}
+        <span className={cn("w-2 h-2 rounded-full flex-shrink-0 mt-0.5", dotColors[estimate.status] ?? "bg-slate-300")} />
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Line 1: title + amount */}
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-sm font-bold text-slate-900 truncate leading-snug">
               {estimate.title || "Sans titre"}
             </p>
-            {client && (
-              <p className="text-sm text-slate-500 truncate mt-0.5">
-                {client.company_name ? `${client.full_name} · ${client.company_name}` : client.full_name}
-              </p>
-            )}
-            {client && (client.city || client.postal_code || client.address) && (
-              <p className="text-xs text-slate-400 truncate mt-0.5">
-                {[client.postal_code, client.city].filter(Boolean).join(" ") || client.address}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <span className="text-lg font-black text-slate-900 tabular-nums leading-none">
+            <span className="text-sm font-black text-slate-900 tabular-nums flex-shrink-0">
               {formatCurrency(totalTTC)}
             </span>
-            <span className="text-[10px] text-slate-400">TTC</span>
+          </div>
+          {/* Line 2: client + status badge + date */}
+          <div className="flex items-center gap-2 mt-0.5">
+            {client ? (
+              <span className="text-[11px] text-slate-500 truncate flex-1 min-w-0">
+                {client.company_name ? `${client.full_name} · ${client.company_name}` : client.full_name}
+              </span>
+            ) : (
+              <span className="flex-1" />
+            )}
+            <span className={cn("inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold flex-shrink-0", cfg.color)}>
+              {estimate.status === "viewed"   && <Eye className="w-2.5 h-2.5" />}
+              {estimate.status === "accepted" && <Check className="w-2.5 h-2.5" />}
+              {estimate.status === "paid"     && <Euro className="w-2.5 h-2.5" />}
+              {cfg.label}
+            </span>
+            <span className="text-[10px] text-slate-400 flex-shrink-0">{formatDate(estimate.issued_at)}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold", cfg.color)}>
-            {estimate.status === "viewed"   && <Eye className="w-3 h-3" />}
-            {estimate.status === "accepted" && <Check className="w-3 h-3" />}
-            {estimate.status === "paid"     && <Euro className="w-3 h-3" />}
-            {cfg.label}
-          </span>
-          <span className="text-xs text-slate-400">{estimate.number || "—"}</span>
-          <span className="text-xs text-slate-300">·</span>
-          <span className="text-xs text-slate-400">{formatDate(estimate.issued_at)}</span>
-        </div>
       </Link>
-      {/* Action button */}
-      <div className="px-4 pb-3 -mt-1">
-        <button
-          onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onAction(); }}
-          className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400 py-2 rounded-xl bg-slate-50 active:bg-slate-100"
-        >
-          <MoreHorizontal className="w-3.5 h-3.5" />
-          Actions
-        </button>
-      </div>
+      {/* 3-dot action */}
+      <button
+        onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onAction(); }}
+        className="px-2.5 flex items-center justify-center border-l border-slate-100 active:bg-slate-50 rounded-r-xl flex-shrink-0"
+      >
+        <MoreHorizontal className="w-4 h-4 text-slate-400" />
+      </button>
     </div>
   );
 }

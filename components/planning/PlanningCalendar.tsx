@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 import {
   ChevronLeft, ChevronRight, Plus, X,
-  Wrench, Bell, MapPin, Phone, Clock,
+  Wrench, Bell, MapPin, Phone,
   Search, Zap, AlertTriangle, Calendar, FileText,
 } from "lucide-react";
 import Link from "next/link";
@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import type { Job, Reminder, Client } from "@/lib/types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
+
+type CalView = "day" | "week" | "month";
 
 type CalendarJob = Pick<Job, "id" | "title" | "status" | "scheduled_date" | "address"> & {
   client: { full_name: string; phone: string | null } | null;
@@ -32,14 +34,15 @@ interface PlanningCalendarProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DAY_SHORT = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-const MONTHS    = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const DAY_SHORT  = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+const DAY_LETTER = ["D", "L", "M", "M", "J", "V", "S"]; // Sun=0
+const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
 const STATUS_CONFIG: Record<string, { badge: string; icon: string }> = {
-  planned:     { badge: "bg-blue-100 text-blue-700",    icon: "bg-blue-100 text-blue-600"    },
-  in_progress: { badge: "bg-amber-100 text-amber-700",  icon: "bg-amber-100 text-amber-600"  },
+  planned:     { badge: "bg-blue-100 text-blue-700",       icon: "bg-blue-100 text-blue-600"    },
+  in_progress: { badge: "bg-amber-100 text-amber-700",     icon: "bg-amber-100 text-amber-600"  },
   completed:   { badge: "bg-emerald-100 text-emerald-700", icon: "bg-emerald-100 text-emerald-600" },
-  cancelled:   { badge: "bg-slate-100 text-slate-500",  icon: "bg-slate-100 text-slate-400"  },
+  cancelled:   { badge: "bg-slate-100 text-slate-500",     icon: "bg-slate-100 text-slate-400"  },
 };
 const STATUS_LABEL: Record<string, string> = {
   planned: "Planifié", in_progress: "En cours", completed: "Terminé", cancelled: "Annulé",
@@ -60,7 +63,7 @@ function toDateKey(d: Date) {
 
 function getMondayOf(d: Date): Date {
   const copy = new Date(d);
-  const day = copy.getDay(); // 0=Sun
+  const day  = copy.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   copy.setDate(copy.getDate() + diff);
   copy.setHours(0, 0, 0, 0);
@@ -88,16 +91,15 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function JobCard({ job, onOpen }: { job: CalendarJob; onOpen: () => void }) {
-  const cfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.planned;
-  const hasAddress = !!job.address;
-  const hasPhone   = !!job.client?.phone;
-  const cols = (hasAddress ? 1 : 0) + (hasPhone ? 1 : 0);
+  const cfg     = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.planned;
+  const hasAddr = !!job.address;
+  const hasPhone = !!job.client?.phone;
+  const cols    = (hasAddr ? 1 : 0) + (hasPhone ? 1 : 0);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      {/* Time + status row */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
-        <span className="text-xl font-black text-slate-900 tabular-nums leading-none">
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-50">
+        <span className="text-lg font-black text-slate-900 tabular-nums leading-none">
           {job.scheduled_date ? formatTime(job.scheduled_date) : "—"}
         </span>
         <StatusBadge status={job.status} />
@@ -107,17 +109,13 @@ function JobCard({ job, onOpen }: { job: CalendarJob; onOpen: () => void }) {
           Voir →
         </button>
       </div>
-
-      {/* Content */}
-      <div className="px-4 py-3 flex items-start gap-3">
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", cfg.icon)}>
-          <Wrench className="w-5 h-5" />
+      <div className="px-4 py-2.5 flex items-start gap-3">
+        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", cfg.icon)}>
+          <Wrench className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-slate-900 leading-tight">{job.title}</p>
-          {job.client && (
-            <p className="text-xs font-semibold text-slate-500 mt-0.5">{job.client.full_name}</p>
-          )}
+          {job.client && <p className="text-xs font-semibold text-slate-500 mt-0.5">{job.client.full_name}</p>}
           {job.address && (
             <p className="text-xs text-slate-400 mt-0.5 leading-snug line-clamp-1">
               <MapPin className="w-2.5 h-2.5 inline mr-0.5 -mt-0.5" />{job.address}
@@ -125,28 +123,18 @@ function JobCard({ job, onOpen }: { job: CalendarJob; onOpen: () => void }) {
           )}
         </div>
       </div>
-
-      {/* Action buttons */}
       {cols > 0 && (
         <div className={cn("grid border-t border-slate-100 divide-x divide-slate-100", cols === 2 ? "grid-cols-2" : "grid-cols-1")}>
-          {hasAddress && (
-            <a
-              href={mapsUrl(job.address!)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 py-3 text-sm font-bold text-blue-600 active:bg-blue-50"
-            >
-              <MapPin className="w-4 h-4" />
-              Itinéraire
+          {hasAddr && (
+            <a href={mapsUrl(job.address!)} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-blue-600 active:bg-blue-50">
+              <MapPin className="w-4 h-4" />Itinéraire
             </a>
           )}
           {hasPhone && (
-            <a
-              href={`tel:${job.client!.phone}`}
-              className="flex items-center justify-center gap-2 py-3 text-sm font-bold text-emerald-600 active:bg-emerald-50"
-            >
-              <Phone className="w-4 h-4" />
-              Appeler
+            <a href={`tel:${job.client!.phone}`}
+              className="flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-emerald-600 active:bg-emerald-50">
+              <Phone className="w-4 h-4" />Appeler
             </a>
           )}
         </div>
@@ -158,70 +146,53 @@ function JobCard({ job, onOpen }: { job: CalendarJob; onOpen: () => void }) {
 function ReminderCard({ reminder }: { reminder: CalendarReminder }) {
   return (
     <div className="bg-white rounded-2xl border border-orange-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
-        <span className="text-xl font-black text-slate-900 tabular-nums leading-none">
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-50">
+        <span className="text-lg font-black text-slate-900 tabular-nums leading-none">
           {reminder.scheduled_at ? formatTime(reminder.scheduled_at) : "—"}
         </span>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Rappel</span>
       </div>
-      <div className="px-4 py-3 flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-          <Bell className="w-5 h-5 text-orange-600" />
+      <div className="px-4 py-2.5 flex items-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+          <Bell className="w-4 h-4 text-orange-600" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-slate-900 leading-tight">{reminder.message || "Rappel"}</p>
-          {reminder.client && (
-            <p className="text-xs font-semibold text-slate-500 mt-0.5">{reminder.client.full_name}</p>
-          )}
+          {reminder.client && <p className="text-xs font-semibold text-slate-500 mt-0.5">{reminder.client.full_name}</p>}
         </div>
       </div>
     </div>
   );
 }
 
+// Compact "Journée libre" block — ~50% shorter than before
 function OptimiserBlock({ urgentRelances }: { urgentRelances: number }) {
   return (
-    <div className="rounded-2xl overflow-hidden shadow-md" style={{ background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)" }}>
-      <div className="p-5">
-        <div className="flex items-start gap-3 mb-4">
-          <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-base font-black text-white leading-tight">Journée libre !</p>
-            <p className="text-blue-200 text-[12px] mt-0.5">Profitez-en pour avancer sur vos priorités</p>
-          </div>
+    <div className="rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)" }}>
+      <div className="px-4 py-3 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+          <Zap className="w-4 h-4 text-white" />
         </div>
-
-        <div className="flex flex-col gap-2 mb-4">
-          {urgentRelances > 0 && (
-            <div className="flex items-center gap-2.5 bg-white/10 rounded-xl px-3 py-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-300 flex-shrink-0" />
-              <p className="text-sm font-semibold text-white">
-                {urgentRelances} relance{urgentRelances > 1 ? "s" : ""} urgente{urgentRelances > 1 ? "s" : ""} en attente
-              </p>
-            </div>
-          )}
-          <div className="flex items-center gap-2.5 bg-white/10 rounded-xl px-3 py-2.5">
-            <Search className="w-4 h-4 text-blue-200 flex-shrink-0" />
-            <p className="text-sm font-semibold text-white">Devis en attente de signature à relancer</p>
-          </div>
-          <div className="flex items-center gap-2.5 bg-white/10 rounded-xl px-3 py-2.5">
-            <FileText className="w-4 h-4 text-blue-200 flex-shrink-0" />
-            <p className="text-sm font-semibold text-white">Créer un devis pour un client existant</p>
-          </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-black text-white leading-tight">
+            Journée libre
+            {urgentRelances > 0 && (
+              <span className="ml-2 text-[11px] text-amber-300 font-bold">
+                <AlertTriangle className="w-3 h-3 inline -mt-0.5 mr-0.5" />
+                {urgentRelances} relance{urgentRelances > 1 ? "s" : ""}
+              </span>
+            )}
+          </p>
+          <p className="text-blue-200 text-[11px] mt-0.5">Profitez-en pour avancer sur vos priorités</p>
         </div>
-
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex gap-1.5 flex-shrink-0">
           <Link href="/relances"
-            className="flex items-center justify-center gap-2 bg-white text-blue-700 rounded-xl py-2.5 text-sm font-bold active:bg-blue-50">
-            <Bell className="w-4 h-4" />
-            Relances
+            className="bg-white text-blue-700 rounded-lg py-1.5 px-2.5 text-xs font-bold active:bg-blue-50">
+            <Bell className="w-3 h-3 inline -mt-0.5 mr-1" />Relances
           </Link>
           <Link href="/devis"
-            className="flex items-center justify-center gap-2 bg-white/20 text-white rounded-xl py-2.5 text-sm font-bold active:bg-white/30">
-            <FileText className="w-4 h-4" />
-            Devis
+            className="bg-white/20 text-white rounded-lg py-1.5 px-2.5 text-xs font-bold active:bg-white/30">
+            <FileText className="w-3 h-3 inline -mt-0.5 mr-1" />Devis
           </Link>
         </div>
       </div>
@@ -232,19 +203,21 @@ function OptimiserBlock({ urgentRelances }: { urgentRelances: number }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function PlanningCalendar({ jobs, reminders, clients, businessId }: PlanningCalendarProps) {
-  const router = useRouter();
+  const router  = useRouter();
   const supabase = createClient();
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
 
+  const [calView, setCalView]       = useState<CalView>("month");
   const [selectedDay, setSelectedDay] = useState<Date>(today);
-  const [weekStart, setWeekStart]     = useState<Date>(() => getMondayOf(today));
+  const [weekStart, setWeekStart]   = useState<Date>(() => getMondayOf(today));
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [showAddSheet, setShowAddSheet] = useState(false);
-  const [addType, setAddType]         = useState<"visit" | "reminder" | null>(null);
-  const [addForm, setAddForm]         = useState({ title: "", clientId: "", time: "09:00", notes: "", estimatedHours: "" });
-  const [saving, setSaving]           = useState(false);
+  const [addType, setAddType]       = useState<"visit" | "reminder" | null>(null);
+  const [addForm, setAddForm]       = useState({ title: "", clientId: "", time: "09:00", notes: "", estimatedHours: "" });
+  const [saving, setSaving]         = useState(false);
 
-  // Build 7-day week array
+  // ── Week days ─────────────────────────────────────────────────────────────
   const weekDays = useMemo(() =>
     Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart);
@@ -253,24 +226,47 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
     })
   , [weekStart]);
 
-  // Month label for header (handle week spanning 2 months)
-  const monthLabel = useMemo(() => {
+  // ── Month grid (6 weeks × 7 days = 42 cells, Monday-based) ───────────────
+  const monthDays = useMemo(() => {
+    const year  = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const first = new Date(year, month, 1);
+    const dow   = first.getDay(); // 0=Sun
+    const offset = dow === 0 ? 6 : dow - 1; // leading days from prev month
+
+    const days: Date[] = [];
+    for (let i = offset - 1; i >= 0; i--) {
+      days.push(new Date(year, month, -i));
+    }
+    const last = new Date(year, month + 1, 0).getDate();
+    for (let d = 1; d <= last; d++) {
+      days.push(new Date(year, month, d));
+    }
+    while (days.length < 42) {
+      days.push(new Date(year, month + 1, days.length - offset - last + 1));
+    }
+    return days;
+  }, [currentMonth]);
+
+  // ── Week label ────────────────────────────────────────────────────────────
+  const weekLabel = useMemo(() => {
     const first = weekDays[0];
     const last  = weekDays[6];
     if (first.getMonth() !== last.getMonth()) {
-      return `${MONTHS[first.getMonth()].slice(0, 3)} · ${MONTHS[last.getMonth()].slice(0, 3)} ${last.getFullYear()}`;
+      return `${MONTHS[first.getMonth()].slice(0,3)} · ${MONTHS[last.getMonth()].slice(0,3)} ${last.getFullYear()}`;
     }
     return `${MONTHS[first.getMonth()]} ${first.getFullYear()}`;
   }, [weekDays]);
 
-  // Index events by day key
+  const monthLabel = `${MONTHS[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+
+  // ── Index events ──────────────────────────────────────────────────────────
   const jobsByDay = useMemo(() => {
     const map: Record<string, CalendarJob[]> = {};
     for (const job of jobs) {
       if (!job.scheduled_date) continue;
       const k = toDateKey(new Date(job.scheduled_date));
-      if (!map[k]) map[k] = [];
-      map[k].push(job);
+      (map[k] ??= []).push(job);
     }
     return map;
   }, [jobs]);
@@ -280,13 +276,12 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
     for (const r of reminders) {
       if (!r.scheduled_at) continue;
       const k = toDateKey(new Date(r.scheduled_at));
-      if (!map[k]) map[k] = [];
-      map[k].push(r);
+      (map[k] ??= []).push(r);
     }
     return map;
   }, [reminders]);
 
-  // Events for selected day, sorted by time
+  // ── Day events ────────────────────────────────────────────────────────────
   const dayKey = toDateKey(selectedDay);
   const dayJobs = (jobsByDay[dayKey] || []).slice().sort((a, b) =>
     new Date(a.scheduled_date!).getTime() - new Date(b.scheduled_date!).getTime()
@@ -294,8 +289,6 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
   const dayReminders = (remindersByDay[dayKey] || []).slice().sort((a, b) =>
     new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime()
   );
-
-  // All events merged + sorted
   const allDayEvents: ({ type: "job"; item: CalendarJob } | { type: "reminder"; item: CalendarReminder })[] =
     [
       ...dayJobs.map((j) => ({ type: "job" as const, item: j })),
@@ -308,27 +301,47 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
 
   const urgentRelances = reminders.filter((r) => r.status === "pending").length;
 
-  // ── Navigation ───────────────────────────────────────────────────────────────
-  const prevWeek = useCallback(() =>
-    setWeekStart((d) => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; })
-  , []);
+  // ── Navigation ────────────────────────────────────────────────────────────
+  const goToPrev = useCallback(() => {
+    if (calView === "month") {
+      setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+    } else if (calView === "week") {
+      setWeekStart((d) => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; });
+    } else {
+      setSelectedDay((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; });
+    }
+  }, [calView]);
 
-  const nextWeek = useCallback(() =>
-    setWeekStart((d) => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; })
-  , []);
+  const goToNext = useCallback(() => {
+    if (calView === "month") {
+      setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+    } else if (calView === "week") {
+      setWeekStart((d) => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; });
+    } else {
+      setSelectedDay((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; });
+    }
+  }, [calView]);
 
   const goToToday = () => {
     setSelectedDay(today);
     setWeekStart(getMondayOf(today));
+    setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
   };
 
   const handleDayClick = (day: Date) => {
     setSelectedDay(day);
+    setWeekStart(getMondayOf(day));
     setShowAddSheet(false);
     setAddType(null);
   };
 
-  // ── Add event ────────────────────────────────────────────────────────────────
+  const handleSwitchView = (v: CalView) => {
+    setCalView(v);
+    if (v === "week") setWeekStart(getMondayOf(selectedDay));
+    if (v === "month") setCurrentMonth(new Date(selectedDay.getFullYear(), selectedDay.getMonth(), 1));
+  };
+
+  // ── Add event ─────────────────────────────────────────────────────────────
   const openAdd = (type: "visit" | "reminder") => {
     setAddType(type);
     setShowAddSheet(true);
@@ -389,89 +402,168 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Labels ────────────────────────────────────────────────────────────────
   const isSelectedToday = isSameDay(selectedDay, today);
-  const dayLabel = selectedDay.toLocaleDateString("fr-FR", {
-    weekday: "long", day: "numeric", month: "long",
-  });
-  const dayLabelCapitalized = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
+  const dayLabel = selectedDay.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const dayLabelCap = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
 
+  const headerLabel = calView === "month" ? monthLabel
+    : calView === "week" ? weekLabel
+    : dayLabelCap;
+
+  const isCurrentMonthShown = selectedDay.getFullYear() === currentMonth.getFullYear()
+    && selectedDay.getMonth() === currentMonth.getMonth();
+  const isTodayVisible = calView === "month"
+    ? (today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth())
+    : !isSameDay(selectedDay, today);
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col bg-slate-50 min-h-full">
 
-      {/* ══ WEEK STRIP ═══════════════════════════════════════════════════════ */}
+      {/* ══ STICKY HEADER ════════════════════════════════════════════════════ */}
       <div className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-sm">
-        {/* Month + navigation */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <span className="text-sm font-black text-slate-900">{monthLabel}</span>
+
+        {/* Top row: label + nav */}
+        <div className="flex items-center justify-between px-4 pt-2.5 pb-1.5">
+          <span className="text-sm font-black text-slate-900">{headerLabel}</span>
           <div className="flex items-center gap-1">
-            <button onClick={prevWeek}
-              className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center active:bg-slate-200">
-              <ChevronLeft className="w-4 h-4 text-slate-600" />
+            <button onClick={goToPrev}
+              className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center active:bg-slate-200">
+              <ChevronLeft className="w-3.5 h-3.5 text-slate-600" />
             </button>
-            {!isSameDay(selectedDay, today) && (
+            {!isSameDay(selectedDay, today) || (calView === "month" && !isCurrentMonthShown) ? (
               <button onClick={goToToday}
-                className="text-xs font-bold text-blue-600 px-2.5 py-1 bg-blue-50 rounded-lg active:bg-blue-100">
+                className="text-[11px] font-bold text-blue-600 px-2 py-1 bg-blue-50 rounded-lg active:bg-blue-100">
                 Auj.
               </button>
-            )}
-            <button onClick={nextWeek}
-              className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center active:bg-slate-200">
-              <ChevronRight className="w-4 h-4 text-slate-600" />
+            ) : null}
+            <button onClick={goToNext}
+              className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center active:bg-slate-200">
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
             </button>
           </div>
         </div>
 
-        {/* 7 day slots */}
-        <div className="grid grid-cols-7 px-2 pb-3 gap-1">
-          {weekDays.map((day) => {
-            const k          = toDateKey(day);
-            const isDayToday = isSameDay(day, today);
-            const isSelected = isSameDay(day, selectedDay);
-            const dayJobs_   = jobsByDay[k] || [];
-            const dayRems_   = remindersByDay[k] || [];
-            const dotColors  = [
-              ...dayJobs_.map((j) => STATUS_DOT[j.status] ?? "bg-blue-500"),
-              ...(dayRems_.length > 0 ? ["bg-orange-400"] : []),
-            ].slice(0, 3);
-
-            return (
-              <button
-                key={k}
-                onClick={() => handleDayClick(day)}
-                className="flex flex-col items-center py-1 rounded-xl active:bg-slate-50 transition-colors"
-              >
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">
-                  {DAY_SHORT[day.getDay()]}
-                </span>
-                <span className={cn(
-                  "w-8 h-8 rounded-xl flex items-center justify-center text-[13px] font-black transition-all",
-                  isSelected
-                    ? "bg-violet-600 text-white shadow-sm shadow-violet-400/40"
-                    : isDayToday
-                    ? "bg-blue-100 text-blue-700 font-black"
-                    : "text-slate-700"
-                )}>
-                  {day.getDate()}
-                </span>
-                <div className="flex gap-0.5 mt-1.5 h-1.5 items-center">
-                  {dotColors.map((color, i) => (
-                    <span key={i} className={cn("w-1.5 h-1.5 rounded-full", color)} />
-                  ))}
-                </div>
-              </button>
-            );
-          })}
+        {/* View switch */}
+        <div className="px-3 pb-2">
+          <div className="flex bg-slate-100 rounded-xl p-0.5 gap-0.5">
+            {(["month", "week", "day"] as const).map((v) => {
+              const labels = { month: "Mois", week: "Semaine", day: "Jour" };
+              return (
+                <button
+                  key={v}
+                  onClick={() => handleSwitchView(v)}
+                  className={cn(
+                    "flex-1 py-1.5 rounded-lg text-[12px] font-bold transition-all",
+                    calView === v ? "bg-white shadow-sm text-blue-600" : "text-slate-400"
+                  )}
+                >
+                  {labels[v]}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        {/* ── Week strip (week view only) ─────────────────────────────────── */}
+        {calView === "week" && (
+          <div className="grid grid-cols-7 px-2 pb-2.5 gap-0.5">
+            {weekDays.map((day) => {
+              const k         = toDateKey(day);
+              const isDayToday = isSameDay(day, today);
+              const isSelected = isSameDay(day, selectedDay);
+              const dayJobDots = [
+                ...(jobsByDay[k] || []).map((j) => STATUS_DOT[j.status] ?? "bg-blue-500"),
+                ...((remindersByDay[k] || []).length > 0 ? ["bg-orange-400"] : []),
+              ].slice(0, 3);
+
+              return (
+                <button key={k} onClick={() => handleDayClick(day)}
+                  className="flex flex-col items-center py-1 rounded-xl active:bg-slate-50">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1">
+                    {DAY_SHORT[day.getDay()]}
+                  </span>
+                  <span className={cn(
+                    "w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-black transition-all",
+                    isSelected ? "bg-violet-600 text-white shadow-sm shadow-violet-400/40"
+                      : isDayToday ? "bg-blue-100 text-blue-700"
+                      : "text-slate-700"
+                  )}>
+                    {day.getDate()}
+                  </span>
+                  <div className="flex gap-0.5 mt-1 h-1.5 items-center">
+                    {dayJobDots.map((color, i) => (
+                      <span key={i} className={cn("w-1 h-1 rounded-full", color)} />
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Month grid (month view only) ────────────────────────────────── */}
+        {calView === "month" && (
+          <div className="px-2 pb-2">
+            {/* Day-of-week headers (Mon→Sun) */}
+            <div className="grid grid-cols-7 mb-0.5">
+              {[1,2,3,4,5,6,0].map((dow) => (
+                <div key={dow} className="text-center text-[10px] font-bold text-slate-400 py-1">
+                  {DAY_LETTER[dow]}
+                </div>
+              ))}
+            </div>
+            {/* 6 × 7 grid */}
+            <div className="grid grid-cols-7 gap-y-0.5">
+              {monthDays.map((day, i) => {
+                const isCurrentMo = day.getMonth() === currentMonth.getMonth();
+                const isDayToday  = isSameDay(day, today);
+                const isSelected  = isSameDay(day, selectedDay);
+                const k = toDateKey(day);
+                const jCount = (jobsByDay[k] || []).length;
+                const rCount = (remindersByDay[k] || []).length;
+                const dots = [
+                  ...(jobsByDay[k] || []).map((j) => STATUS_DOT[j.status] ?? "bg-blue-500"),
+                  ...((remindersByDay[k] || []).length > 0 ? ["bg-orange-400"] : []),
+                ].slice(0, 3);
+
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleDayClick(day)}
+                    className="flex flex-col items-center py-0.5 rounded-lg active:bg-slate-50"
+                  >
+                    <span className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-bold transition-all leading-none",
+                      isSelected  ? "bg-violet-600 text-white shadow-sm shadow-violet-400/40"
+                        : isDayToday ? "bg-blue-100 text-blue-700 font-black"
+                        : isCurrentMo ? "text-slate-700"
+                        : "text-slate-300"
+                    )}>
+                      {day.getDate()}
+                    </span>
+                    {/* Event dots */}
+                    <div className="flex gap-0.5 mt-0.5 h-1.5 items-center min-h-[6px]">
+                      {dots.map((color, di) => (
+                        <span key={di} className={cn("w-1 h-1 rounded-full", color)} />
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ══ DAY VIEW ══════════════════════════════════════════════════════════ */}
-      <div className="flex flex-col gap-3 px-4 pt-4 pb-10">
+      {/* ══ DAY DETAIL ═══════════════════════════════════════════════════════ */}
+      <div className="flex flex-col gap-2.5 px-4 pt-3 pb-10">
 
         {/* Day header */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-base font-black text-slate-900 leading-tight">{dayLabelCapitalized}</p>
+            <p className="text-sm font-black text-slate-900 leading-tight">{dayLabelCap}</p>
             <p className="text-[11px] text-slate-400 mt-0.5">
               {allDayEvents.length > 0
                 ? `${allDayEvents.length} événement${allDayEvents.length > 1 ? "s" : ""}`
@@ -480,11 +572,11 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
           </div>
           <div className="flex gap-1.5">
             <button onClick={() => openAdd("visit")}
-              className="flex items-center gap-1 bg-blue-50 text-blue-700 text-[11px] font-bold px-3 py-2 rounded-xl active:bg-blue-100">
+              className="flex items-center gap-1 bg-blue-50 text-blue-700 text-[11px] font-bold px-3 py-1.5 rounded-xl active:bg-blue-100">
               <Plus className="w-3.5 h-3.5" />Visite
             </button>
             <button onClick={() => openAdd("reminder")}
-              className="flex items-center gap-1 bg-orange-50 text-orange-700 text-[11px] font-bold px-3 py-2 rounded-xl active:bg-orange-100">
+              className="flex items-center gap-1 bg-orange-50 text-orange-700 text-[11px] font-bold px-3 py-1.5 rounded-xl active:bg-orange-100">
               <Bell className="w-3.5 h-3.5" />Rappel
             </button>
           </div>
@@ -561,7 +653,7 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
           </div>
         )}
 
-        {/* ── Events timeline ──────────────────────────────────────────────── */}
+        {/* Events */}
         {allDayEvents.length > 0 ? (
           allDayEvents.map((ev) =>
             ev.type === "job"
@@ -569,19 +661,15 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
               : <ReminderCard key={ev.item.id} reminder={ev.item} />
           )
         ) : !showAddSheet && (
-          /* ── Empty state: Optimiser ma journée ─────────────────────────── */
           <OptimiserBlock urgentRelances={urgentRelances} />
         )}
 
-        {/* ── Upcoming events mini-list (below today's timeline) ──────────── */}
+        {/* Upcoming events mini-list */}
         {(() => {
-          const upcoming = [
-            ...jobs
-              .filter((j) => j.scheduled_date && new Date(j.scheduled_date) > selectedDay)
-              .sort((a, b) => new Date(a.scheduled_date!).getTime() - new Date(b.scheduled_date!).getTime())
-              .slice(0, 5)
-              .map((j) => ({ type: "job" as const, date: j.scheduled_date!, item: j })),
-          ].slice(0, 5);
+          const upcoming = jobs
+            .filter((j) => j.scheduled_date && new Date(j.scheduled_date) > selectedDay)
+            .sort((a, b) => new Date(a.scheduled_date!).getTime() - new Date(b.scheduled_date!).getTime())
+            .slice(0, 5);
 
           if (upcoming.length === 0) return null;
 
@@ -589,7 +677,7 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
             <div className="pt-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Prochains chantiers</p>
               <div className="flex flex-col gap-1.5">
-                {upcoming.map(({ item: job }) => {
+                {upcoming.map((job) => {
                   const d = new Date(job.scheduled_date!);
                   const label = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
                   return (
@@ -598,21 +686,24 @@ export default function PlanningCalendar({ jobs, reminders, clients, businessId 
                       onClick={() => {
                         const day = new Date(job.scheduled_date!);
                         day.setHours(0,0,0,0);
-                        setSelectedDay(day);
-                        setWeekStart(getMondayOf(day));
+                        handleDayClick(day);
+                        if (calView === "month") {
+                          setCurrentMonth(new Date(day.getFullYear(), day.getMonth(), 1));
+                        }
                       }}
-                      className="bg-white rounded-xl border border-slate-100 px-4 py-3 flex items-center gap-3 active:bg-slate-50 text-left"
+                      className="bg-white rounded-xl border border-slate-100 px-3 py-2.5 flex items-center gap-3 active:bg-slate-50 text-left"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                        <Calendar className="w-4 h-4 text-blue-500" />
+                      <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-800 truncate">{job.title}</p>
-                        <p className="text-[11px] text-slate-400">{label} · {formatTime(job.scheduled_date!)}
+                        <p className="text-[11px] text-slate-400">
+                          {label} · {formatTime(job.scheduled_date!)}
                           {job.client ? ` · ${job.client.full_name}` : ""}
                         </p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
                     </button>
                   );
                 })}

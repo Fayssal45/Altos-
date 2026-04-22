@@ -150,7 +150,7 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
 
   useEffect(() => {
     [
-      "/terrain", "/dashboard", "/planning", "/devis", "/clients",
+      "/terrain", "/planning", "/devis", "/clients",
       "/relances", "/revenus", "/catalogue", "/commercial",
     ].forEach((r) => router.prefetch(r));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,7 +169,7 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
     switchMode(newMode);
 
     const isOnCommercial  = pathname === "/commercial" || pathname.startsWith("/commercial/");
-    const isOnAdminOnly   = ["/dashboard", "/revenus"].includes(pathname);
+    const isOnAdminOnly   = ["/revenus"].includes(pathname);
     const isOnTerrainOnly = ["/planning", "/catalogue"].includes(pathname);
 
     if (newMode === "commercial") {
@@ -399,7 +399,7 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
             <div
               key={path}
               className={cn(
-                "absolute inset-0 overflow-y-auto pb-24 lg:pb-8",
+                "absolute inset-0 overflow-y-auto pb-20 lg:pb-6",
                 path !== pathname && "hidden"
               )}
               aria-hidden={path !== pathname}
@@ -410,7 +410,7 @@ export default function AppShell({ children, business, user, relancesCount = 0 }
             </div>
           ))}
           {(!isTabPath || !tabCache[pathname]) && (
-            <div className="absolute inset-0 overflow-y-auto pb-24 lg:pb-8">
+            <div className="absolute inset-0 overflow-y-auto pb-20 lg:pb-6">
               <div className="lg:max-w-5xl lg:mx-auto min-h-full">
                 {children}
               </div>

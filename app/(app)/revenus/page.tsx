@@ -7,49 +7,33 @@ export default async function RevenusPage() {
 
   const { data: business } = await supabase
     .from("businesses")
-    .select("id")
+    .select("id, name, vat_regime")
     .eq("owner_id", session!.user.id)
     .single();
 
-  const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
-  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  if (!business) return null;
 
-  const [
-    { data: paidThisYearRaw },
-    { data: pendingEstimates },
-    { data: paidThisMonth },
-  ] = await Promise.all([
-    supabase
-      .from("estimates")
-      .select("total_amount_ht, vat_rate, paid_at, title, number, client:clients(full_name)")
-      .eq("business_id", business?.id || "")
-      .eq("status", "paid")
-      .gte("paid_at", startOfYear)
-      .order("paid_at", { ascending: false }),
-    supabase
-      .from("estimates")
-      .select("total_amount_ht, vat_rate, status, title, number")
-      .eq("business_id", business?.id || "")
-      .in("status", ["sent", "viewed", "accepted"]),
-    supabase
-      .from("estimates")
-      .select("total_amount_ht, vat_rate")
-      .eq("business_id", business?.id || "")
-      .eq("status", "paid")
-      .gte("paid_at", startOfMonth),
-  ]);
+  // Fetch last 2 years — period filtering happens client-side
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
 
-  // Normalize client join (Supabase returns array for joined tables)
-  const paidThisYear = (paidThisYearRaw || []).map((e) => ({
+  const { data: raw } = await supabase
+    .from("estimates")
+    .select(`
+      id, number, title, status,
+      total_amount_ht, vat_rate,
+      issued_at, paid_at,
+      client:clients(id, full_name, company_name)
+    `)
+    .eq("business_id", business.id)
+    .gte("issued_at", twoYearsAgo.toISOString())
+    .not("status", "in", '("draft","archived")')
+    .order("issued_at", { ascending: false });
+
+  const estimates = (raw || []).map((e) => ({
     ...e,
     client: Array.isArray(e.client) ? (e.client[0] ?? null) : (e.client ?? null),
   }));
 
-  return (
-    <RevenusView
-      paidThisYear={paidThisYear as any}
-      pendingEstimates={pendingEstimates || []}
-      paidThisMonth={paidThisMonth || []}
-    />
-  );
+  return <RevenusView estimates={estimates as any} business={business} />;
 }
